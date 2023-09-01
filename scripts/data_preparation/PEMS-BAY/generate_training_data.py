@@ -115,8 +115,8 @@ if __name__ == "__main__":
     TOD = True                  # if add time_of_day feature
     DOW = True                  # if add day_of_week feature
     OUTPUT_DIR = "datasets/" + DATASET_NAME
-    DATA_FILE_PATH = "datasets/raw_data/{0}/{0}.h5".format(DATASET_NAME)
-    GRAPH_FILE_PATH = "datasets/raw_data/{0}/adj_{0}.pkl".format(DATASET_NAME)
+    DATA_FILE_PATH = "datasets/{0}/{0}.h5".format(DATASET_NAME)
+    GRAPH_FILE_PATH = "datasets/{0}/adj_{0}.pkl".format(DATASET_NAME)
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--output_dir", type=str,

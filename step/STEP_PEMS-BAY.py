@@ -13,6 +13,7 @@ from .step_runner import STEPRunner
 from .step_loss import step_loss
 from .step_data import ForecastingDataset
 
+BASE_DATA_DIR = "/home/seyed/PycharmProjects/step/STEP/datasets/raw_data/"
 
 CFG = EasyDict()
 
@@ -113,7 +114,7 @@ CFG.TRAIN.CKPT_SAVE_DIR = os.path.join(
 CFG.TRAIN.DATA = EasyDict()
 CFG.TRAIN.NULL_VAL = 0.0
 # read data
-CFG.TRAIN.DATA.DIR = "datasets/" + CFG.DATASET_NAME
+CFG.TRAIN.DATA.DIR = BASE_DATA_DIR + CFG.DATASET_NAME
 # dataloader args, optional
 CFG.TRAIN.DATA.BATCH_SIZE = 32
 CFG.TRAIN.DATA.PREFETCH = False
@@ -132,7 +133,7 @@ CFG.VAL.INTERVAL = 1
 # validating data
 CFG.VAL.DATA = EasyDict()
 # read data
-CFG.VAL.DATA.DIR = "datasets/" + CFG.DATASET_NAME
+CFG.VAL.DATA.DIR = BASE_DATA_DIR + CFG.DATASET_NAME
 # dataloader args, optional
 CFG.VAL.DATA.BATCH_SIZE = 32
 CFG.VAL.DATA.PREFETCH = False
@@ -147,7 +148,7 @@ CFG.TEST.INTERVAL = 1
 # test data
 CFG.TEST.DATA = EasyDict()
 # read data
-CFG.TEST.DATA.DIR = "datasets/" + CFG.DATASET_NAME
+CFG.TEST.DATA.DIR = BASE_DATA_DIR + CFG.DATASET_NAME
 # dataloader args, optional
 CFG.TEST.DATA.BATCH_SIZE = 32
 CFG.TEST.DATA.PREFETCH = False

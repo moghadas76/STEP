@@ -7,6 +7,7 @@ from basicts.utils import load_pkl
 
 from .similarity import batch_cosine_similarity, batch_dot_similarity
 
+BASE_DATA_DIR = "/home/seyed/PycharmProjects/step/STEP/datasets/"
 
 def sample_gumbel(shape, eps=1e-20, device=None):
     uniform = torch.rand(shape).to(device)
@@ -54,7 +55,7 @@ class DiscreteGraphLearning(nn.Module):
         self.k = k          # the "k" of knn graph
         self.num_nodes = {"METR-LA": 207, "PEMS04": 307, "PEMS-BAY": 325, "PEMS08": 170}[dataset_name]
         self.train_length = {"METR-LA": 23990, "PEMS04": 13599, "PEMS-BAY": 36482, "PEMS08": 14284}[dataset_name]
-        self.node_feats = torch.from_numpy(load_pkl("datasets/" + dataset_name + "/data_in{0}_out{1}.pkl".format(input_seq_len, output_seq_len))["processed_data"]).float()[:self.train_length, :, 0]
+        self.node_feats = torch.from_numpy(load_pkl(BASE_DATA_DIR + dataset_name + "/data_in{0}_out{1}.pkl".format(input_seq_len, output_seq_len))["processed_data"]).float()[:self.train_length, :, 0]
 
         # CNN for global feature extraction
         ## for the dimension, see https://github.com/zezhishao/STEP/issues/1#issuecomment-1191640023

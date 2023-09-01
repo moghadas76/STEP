@@ -1,6 +1,7 @@
+import os
 import torch
 import numpy as np
-
+from uuid import uuid4
 
 def masked_mae(preds: torch.Tensor, labels: torch.Tensor, null_val: float = np.nan) -> torch.Tensor:
     """Masked mean absolute error.
@@ -22,7 +23,12 @@ def masked_mae(preds: torch.Tensor, labels: torch.Tensor, null_val: float = np.n
     mask = mask.float()
     mask /= torch.mean((mask))
     mask = torch.where(torch.isnan(mask), torch.zeros_like(mask), mask)
-    loss = torch.abs(preds-labels)
+    loss: torch.Tensor = torch.abs(preds-labels)
     loss = loss * mask
     loss = torch.where(torch.isnan(loss), torch.zeros_like(loss), loss)
+    loss_name = f"mae_{uuid4()}"
+    np.savez(
+    os.path.join("/home/seyed/PycharmProjects/step/STEP/loss/", "%s.npz" % loss_name),
+    mae=loss.cpu().data.numpy()
+    )
     return torch.mean(loss)

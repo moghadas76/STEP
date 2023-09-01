@@ -3,8 +3,18 @@ import functools
 from typing import Tuple, Union, Optional
 
 import torch
+import mlflow
 import numpy as np
 from easytorch.utils.dist import master_only
+import tensorflow as tf
+
+import tensorflow.summary
+
+from tensorflow.summary import scalar
+
+from tensorflow.summary import histogram
+from torch.utils.tensorboard import SummaryWriter
+writer = None
 
 from .base_runner import BaseRunner
 from ..data import SCALER_REGISTRY
@@ -222,6 +232,11 @@ class BaseTimeSeriesForecastingRunner(BaseRunner):
             raise TypeError("Unknown metric type: {0}".format(type(metric_func)))
         return metric_item
 
+    def log_scalar(self, name, value, step):
+        with writer.as_default():
+          tf.summary.scalar(name, value, step)
+        mlflow.log_metric(name, value, step=step)
+
     def train_iters(self, epoch: int, iter_index: int, data: Union[torch.Tensor, Tuple]) -> torch.Tensor:
         """Training details.
 
@@ -251,6 +266,7 @@ class BaseTimeSeriesForecastingRunner(BaseRunner):
         # metrics
         for metric_name, metric_func in self.metrics.items():
             metric_item = self.metric_forward(metric_func, forward_return[:2])
+            # self.log_scalar('train_loss', loss.data.item(), epoch)
             self.update_epoch_meter("train_"+metric_name, metric_item.item())
         return loss
 
@@ -270,6 +286,7 @@ class BaseTimeSeriesForecastingRunner(BaseRunner):
         # metrics
         for metric_name, metric_func in self.metrics.items():
             metric_item = self.metric_forward(metric_func, [prediction_rescaled, real_value_rescaled])
+            # self.log_scalar("val_"+metric_name, loss.data.item(), iter_index)
             self.update_epoch_meter("val_"+metric_name, metric_item.item())
 
     @torch.no_grad()
