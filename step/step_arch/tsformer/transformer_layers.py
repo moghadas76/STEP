@@ -1,4 +1,6 @@
 import math
+
+import numpy as np
 from torch import nn
 from torch.nn import TransformerEncoder, TransformerEncoderLayer
 
@@ -18,3 +20,4 @@ class TransformerLayers(nn.Module):
         output = self.transformer_encoder(src, mask=None)
         output = output.transpose(0, 1).view(B, N, L, D)
         return output
+np.cov()
