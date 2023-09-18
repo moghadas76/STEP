@@ -2,7 +2,6 @@ import numpy as np
 from torch import nn
 from basicts.losses import masked_mae
 
-writer = None
 
 def step_loss(prediction, real_value, theta, priori_adj, gsl_coefficient, null_val=np.nan):
     # graph structure learning loss

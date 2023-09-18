@@ -176,6 +176,8 @@ class TSFormer(nn.Module):
                 torch.Tensor: the output of TSFormer of the encoder with shape [B, N, L, 1].
         """
         # reshape
+        # import remote_pdb
+        # remote_pdb.set_trace()
         history_data = history_data.permute(0, 2, 3, 1)     # B, N, 1, L * P
         # feed forward
         if self.mode == "pre-train":

@@ -26,9 +26,9 @@ def masked_mae(preds: torch.Tensor, labels: torch.Tensor, null_val: float = np.n
     loss: torch.Tensor = torch.abs(preds-labels)
     loss = loss * mask
     loss = torch.where(torch.isnan(loss), torch.zeros_like(loss), loss)
-    loss_name = f"mae_{uuid4()}"
-    np.savez(
-    os.path.join("/home/seyed/PycharmProjects/step/STEP/loss/", "%s.npz" % loss_name),
-    mae=loss.cpu().data.numpy()
-    )
+    # loss_name = f"mae_{uuid4()}"
+    # np.savez(
+    # os.path.join("/home/seyed/PycharmProjects/step/STEP/loss/", "%s.npz" % loss_name),
+    # mae=loss.cpu().data.numpy()
+    # )
     return torch.mean(loss)

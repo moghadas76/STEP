@@ -3,17 +3,8 @@ import functools
 from typing import Tuple, Union, Optional
 
 import torch
-import mlflow
 import numpy as np
 from easytorch.utils.dist import master_only
-import tensorflow as tf
-
-import tensorflow.summary
-
-from tensorflow.summary import scalar
-
-from tensorflow.summary import histogram
-from torch.utils.tensorboard import SummaryWriter
 writer = None
 
 from .base_runner import BaseRunner
@@ -232,10 +223,6 @@ class BaseTimeSeriesForecastingRunner(BaseRunner):
             raise TypeError("Unknown metric type: {0}".format(type(metric_func)))
         return metric_item
 
-    def log_scalar(self, name, value, step):
-        with writer.as_default():
-          tf.summary.scalar(name, value, step)
-        mlflow.log_metric(name, value, step=step)
 
     def train_iters(self, epoch: int, iter_index: int, data: Union[torch.Tensor, Tuple]) -> torch.Tensor:
         """Training details.

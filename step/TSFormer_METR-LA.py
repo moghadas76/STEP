@@ -28,7 +28,7 @@ CFG.ENV = EasyDict()
 CFG.ENV.SEED = 0
 CFG.ENV.CUDNN = EasyDict()
 CFG.ENV.CUDNN.ENABLED = True
-
+CFG.DDD = "/home/seyed/PycharmProjects/step/STEP/tsformer_ckpt/TSFormer_METR-LA.pt"
 # ================= model ================= #
 CFG.MODEL = EasyDict()
 CFG.MODEL.NAME = "TSFormer"

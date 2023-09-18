@@ -48,6 +48,12 @@ class BaseRunner(Runner):
 
     @staticmethod
     def define_model(cfg: Dict) -> nn.Module:
+        if cfg.DDD:
+            print("Madaret Zendast", cfg.DDD)
+            model: torch.nn.Module = cfg["MODEL"]["ARCH"](**cfg.MODEL.PARAM)
+            model.load_state_dict(torch.load(cfg.DDD)["model_state_dict"])
+            model.eval()
+            return model
         return cfg["MODEL"]["ARCH"](**cfg.MODEL.PARAM)
 
     def build_train_data_loader(self, cfg: dict) -> DataLoader:
@@ -176,7 +182,6 @@ class BaseRunner(Runner):
         test_end_time = time.time()
         self.update_epoch_meter("test_time", test_end_time - test_start_time)
         # print test meters
-        self.print_epoch_meters("test")
         if train_epoch is not None:
             # tensorboard plt meters
             self.plt_epoch_meters("test", train_epoch // self.test_interval)

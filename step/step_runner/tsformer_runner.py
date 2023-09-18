@@ -88,3 +88,7 @@ class TSFormerRunner(BaseTimeSeriesForecastingRunner):
             for metric_name, metric_func in self.metrics.items():
                 metric_item = metric_func(prediction_rescaled, real_value_rescaled, null_val=self.null_val)
                 self.update_epoch_meter("test_"+metric_name, metric_item.item())
+            # import remote_pdb;
+            # remote_pdb.set_trace()
+            print("MMMM")
+

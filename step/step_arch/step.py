@@ -5,15 +5,6 @@ from .tsformer import TSFormer
 from .graphwavenet import GraphWaveNet
 from .discrete_graph_learning import DiscreteGraphLearning
 
-# def log_scalar(name, value, step):
-#
-#     """Log a scalar value to both MLflow and TensorBoard"""
-#
-#     with writer.as_default():
-#
-#       tf.summary.scalar(name, value, step)
-#
-#     mlflow.log_metric(name, value, step=step)
 
 class STEP(nn.Module):
     """Pre-training Enhanced Spatial-temporal Graph Neural Network for Multivariate Time Series Forecasting"""
@@ -37,7 +28,6 @@ class STEP(nn.Module):
         """Load pre-trained model"""
 
         # load parameters
-        print("loading pretrained model....")
         checkpoint_dict = torch.load(self.pre_trained_tsformer_path)
         self.tsformer.load_state_dict(checkpoint_dict["model_state_dict"])
         # freeze parameters
@@ -59,7 +49,6 @@ class STEP(nn.Module):
             torch.Tensor: the Bernoulli distribution parameters with shape [B, N, N].
             torch.Tensor: the kNN graph with shape [B, N, N], which is used to guide the training of the dependency graph.
         """
-
         # reshape
         short_term_history = history_data     # [B, L, N, 1]
         long_term_history = long_history_data

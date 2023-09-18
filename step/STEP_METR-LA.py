@@ -42,7 +42,7 @@ CFG.MODEL.ARCH = STEP
 
 CFG.MODEL.PARAM = {
     "dataset_name": CFG.DATASET_NAME,
-    "pre_trained_tsformer_path": "tsformer_ckpt/TSFormer_METR-LA.pt",
+    "pre_trained_tsformer_path": "tsformer_ckpt/_TSFormer_METR-LA.pt",
     "tsformer_args": {
                     "patch_size":12,
                     "in_channel":1,
@@ -105,7 +105,7 @@ CFG.TRAIN.LR_SCHEDULER.PARAM= {
 CFG.TRAIN.CLIP_GRAD_PARAM = {
     "max_norm": 3.0
 }
-CFG.TRAIN.NUM_EPOCHS = 150
+CFG.TRAIN.NUM_EPOCHS = 100
 CFG.TRAIN.CKPT_SAVE_DIR = os.path.join(
     "checkpoints",
     "_".join([CFG.MODEL.NAME, str(CFG.TRAIN.NUM_EPOCHS)])
