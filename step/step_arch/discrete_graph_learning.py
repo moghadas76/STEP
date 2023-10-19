@@ -78,7 +78,7 @@ class DiscreteGraphLearning(nn.Module):
         self.fc_cat = nn.Linear(self.embedding_dim, 2)
         self.fc_out = nn.Linear((self.embedding_dim) * 2, self.embedding_dim)
         self.dropout = nn.Dropout(0.5)
-
+        self.current_norm = 0.0
         def encode_one_hot(labels):
         # reference code https://github.com/chaoshangcs/GTS/blob/8ed45ff1476639f78c382ff09ecca8e60523e7ce/model/pytorch/model.py#L149
             classes = set(labels)
@@ -111,7 +111,7 @@ class DiscreteGraphLearning(nn.Module):
         adj.requires_grad = False
         return adj
 
-    def forward(self, long_term_history, tsformer):
+    def forward(self, long_term_history, tsformer, indx=[]):
         """Learning discrete graph structure based on TSFormer.
 
         Args:
@@ -137,13 +137,23 @@ class DiscreteGraphLearning(nn.Module):
         global_feat = global_feat.unsqueeze(0).expand(batch_size, num_nodes, -1)                     # Gi in Eq. (2)
 
         # generate dynamic feature based on TSFormer
-        hidden_states = tsformer(long_term_history[..., [0]])
+        hidden_states, attention = tsformer(long_term_history[..., [0]])
+
+
+        # if torch.linalg.norm(attention).item() > self.current_norm:
+        #     torch.save(attention.view(-1, 24, 207, 207), "/home/seyed/PycharmProjects/step/STEP/checkpoints/tensors/attention_prediction.pt")
+        #     self.current_norm = torch.linalg.norm(attention).item()
+        #     print("Current norm", self.current_norm)
+
+
         # The dynamic feature has now been removed,
         # as we found that it could lead to instability in the learning of the underlying graph structure.
         # dynamic_feat = F.relu(self.fc_mean(hidden_states.reshape(batch_size, num_nodes, -1)))     # relu(FC(Hi)) in Eq. (2)
 
         # time series feature
         node_feat = global_feat
+        hidden_states[:, indx, :, :] = 0.0
+
 
         # learning discrete graph structure
         receivers = torch.matmul(self.rel_rec.to(node_feat.device), node_feat)
