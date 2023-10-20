@@ -34,4 +34,16 @@ typing_extensions==4.2.0
 urllib3==1.26.9
 Werkzeug==2.1.2
 zipp==3.8.0
-timm==0.6.7
+timm~=0.9.7
+torch~=2.1.0
+networkx~=3.1
+seaborn~=0.12.2
+xformers~=0.0.22.post4
+xgboost~=2.0.0
+pytest~=7.4.0
+sympy~=1.11.1
+pandas~=2.0.3
+matplotlib~=3.7.2
+pyvis~=0.3.2
+aiofiles~=23.2.1
+aiohttp~=3.8.5

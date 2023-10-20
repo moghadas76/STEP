@@ -1,0 +1,1 @@
+python step/run.py --cfg='step/TSFormer_METR-LA_imp.py' --gpus='1, 2'

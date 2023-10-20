@@ -1,15 +1,25 @@
+import os
+import timm
 import torch
+import numpy as np
+import matplotlib.pyplot as plt
 
 from easytorch.utils.dist import master_only
 from basicts.data.registry import SCALER_REGISTRY
 from basicts.runners import BaseTimeSeriesForecastingRunner
+from xformers.components import MultiHeadDispatch
+from xformers.components.attention import BlockSparseAttention
+
+OUTPUT_DIR = "/home/seyed/PycharmProjects/step/STEP/checkpoints/tensors"
 
 
 class TSFormerRunner(BaseTimeSeriesForecastingRunner):
+
     def __init__(self, cfg: dict):
         super().__init__(cfg)
         self.forward_features = cfg["MODEL"].get("FORWARD_FEATURES", None)
         self.target_features = cfg["MODEL"].get("TARGET_FEATURES", None)
+        # self.replace_attn_with_xformers_one(self.model, self.my_fancy_mask)
 
     def select_input_features(self, data: torch.Tensor) -> torch.Tensor:
         """Select input features and reshape data to fit the target model.
@@ -55,20 +65,23 @@ class TSFormerRunner(BaseTimeSeriesForecastingRunner):
 
         # preprocess
         future_data, history_data = data
-        history_data    = self.to_running_device(history_data)      # B, L, N, C
-        future_data     = self.to_running_device(future_data)       # B, L, N, C
+        history_data = self.to_running_device(history_data)      # B, L, N, C
+        future_data = self.to_running_device(future_data)       # B, L, N, C
         batch_size, length, num_nodes, _ = future_data.shape
 
         history_data = self.select_input_features(history_data)
 
         # feed forward
-        reconstruction_masked_tokens, label_masked_tokens = self.model(history_data=history_data, future_data=None, batch_seen=iter_num, epoch=epoch)
+        reconstruction_masked_tokens, label_masked_tokens, atts = self.model(history_data=history_data, future_data=None, batch_seen=iter_num, epoch=epoch)
+        # plt.plot(label_masked_tokens[0, :, 0].cpu().numpy(), color='green')
+        # plt.plot(history_data[0, :, 0, 0].cpu().numpy(), color='blue')
+        # plt.show()
         # assert list(prediction_data.shape)[:3] == [batch_size, length, num_nodes], \
             # "error shape of the output, edit the forward function to reshape it to [B, L, N, C]"
         # post process
         # prediction = self.select_target_features(prediction_data)
         # real_value = self.select_target_features(future_data)
-        return reconstruction_masked_tokens, label_masked_tokens
+        return reconstruction_masked_tokens, label_masked_tokens, atts
 
     @torch.no_grad()
     @master_only
@@ -80,7 +93,7 @@ class TSFormerRunner(BaseTimeSeriesForecastingRunner):
         """
 
         for _, data in enumerate(self.test_data_loader):
-            forward_return = self.forward(data=data, epoch=None, iter_num=None, train=False)
+            forward_return = list(self.forward(data=data, epoch=None, iter_num=None, train=False))[:-1]
             # re-scale data
             prediction_rescaled = SCALER_REGISTRY.get(self.scaler["func"])(forward_return[0], **self.scaler["args"])
             real_value_rescaled = SCALER_REGISTRY.get(self.scaler["func"])(forward_return[1], **self.scaler["args"])
@@ -88,7 +101,4 @@ class TSFormerRunner(BaseTimeSeriesForecastingRunner):
             for metric_name, metric_func in self.metrics.items():
                 metric_item = metric_func(prediction_rescaled, real_value_rescaled, null_val=self.null_val)
                 self.update_epoch_meter("test_"+metric_name, metric_item.item())
-            # import remote_pdb;
-            # remote_pdb.set_trace()
-            print("MMMM")
-
+        self.print_epoch_meters("test")

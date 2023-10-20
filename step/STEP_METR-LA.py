@@ -42,7 +42,7 @@ CFG.MODEL.ARCH = STEP
 
 CFG.MODEL.PARAM = {
     "dataset_name": CFG.DATASET_NAME,
-    "pre_trained_tsformer_path": "tsformer_ckpt/_TSFormer_METR-LA.pt",
+    "pre_trained_tsformer_path": "/home/seyed/PycharmProjects/step/STEP/checkpoints/TSFormer_100/3e31531c2fdd72ba6f9703d27019cf4a/TSFormer_best_val_MAE.pt",
     "tsformer_args": {
                     "patch_size":12,
                     "in_channel":1,
@@ -54,7 +54,8 @@ CFG.MODEL.PARAM = {
                     "mask_ratio":0.75,
                     "encoder_depth":4,
                     "decoder_depth":1,
-                    "mode":"forecasting"
+                    "mode":"forecasting",
+                    "node_numbers": 207
     },
     "backend_args": {
                     "num_nodes" : 207,
@@ -116,7 +117,7 @@ CFG.TRAIN.NULL_VAL = 0.0
 # read data
 CFG.TRAIN.DATA.DIR = "datasets/" + CFG.DATASET_NAME
 # dataloader args, optional
-CFG.TRAIN.DATA.BATCH_SIZE = 32
+CFG.TRAIN.DATA.BATCH_SIZE = 8
 CFG.TRAIN.DATA.PREFETCH = False
 CFG.TRAIN.DATA.SHUFFLE = True
 CFG.TRAIN.DATA.NUM_WORKERS = 2
@@ -135,7 +136,7 @@ CFG.VAL.DATA = EasyDict()
 # read data
 CFG.VAL.DATA.DIR = "datasets/" + CFG.DATASET_NAME
 # dataloader args, optional
-CFG.VAL.DATA.BATCH_SIZE = 32
+CFG.VAL.DATA.BATCH_SIZE = 8
 CFG.VAL.DATA.PREFETCH = False
 CFG.VAL.DATA.SHUFFLE = False
 CFG.VAL.DATA.NUM_WORKERS = 2
@@ -150,7 +151,7 @@ CFG.TEST.DATA = EasyDict()
 # read data
 CFG.TEST.DATA.DIR = "datasets/" + CFG.DATASET_NAME
 # dataloader args, optional
-CFG.TEST.DATA.BATCH_SIZE = 32
+CFG.TEST.DATA.BATCH_SIZE = 8
 CFG.TEST.DATA.PREFETCH = False
 CFG.TEST.DATA.SHUFFLE = False
 CFG.TEST.DATA.NUM_WORKERS = 2

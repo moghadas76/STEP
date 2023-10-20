@@ -9,7 +9,7 @@ from basicts.losses import masked_mae
 from .step_arch import TSFormer
 from .step_runner import TSFormerRunner
 from .step_data import PretrainingDataset
-
+from .step_arch.tsformer.mask import SpatialMaskGenerator, KnnMask
 
 CFG = EasyDict()
 
@@ -41,12 +41,13 @@ CFG.MODEL.PARAM = {
     "mlp_ratio":4,
     "dropout":0.1,
     "num_token":288 * 7 / 12,
-    "mask_ratio":0.75,
+    "mask_ratio": 0.50,
     "encoder_depth":4,
     "decoder_depth":1,
     "node_numbers": 207,
     "mode": "pre-train",
-    "masking_strategy": "temporal"
+    "mask_generator_cls": KnnMask,  # SpatialMaskGenerator, KnnMask
+    "masking_strategy": "spatial"
 }
 CFG.MODEL.FORWARD_FEATURES = [0]
 CFG.MODEL.TARGET_FEATURES = [0]
@@ -84,11 +85,11 @@ CFG.TRAIN.NULL_VAL = 0.0
 # read data
 CFG.TRAIN.DATA.DIR = "datasets/" + CFG.DATASET_NAME
 # dataloader args, optional
-CFG.TRAIN.DATA.BATCH_SIZE = 8
+CFG.TRAIN.DATA.BATCH_SIZE = 4
 CFG.TRAIN.DATA.PREFETCH = False
 CFG.TRAIN.DATA.SHUFFLE = True
 CFG.TRAIN.DATA.NUM_WORKERS = 2
-CFG.TRAIN.DATA.PIN_MEMORY = True
+CFG.TRAIN.DATA.PIN_MEMORY = False
 
 # ================= validate ================= #
 CFG.VAL = EasyDict()
@@ -98,23 +99,23 @@ CFG.VAL.DATA = EasyDict()
 # read data
 CFG.VAL.DATA.DIR = "datasets/" + CFG.DATASET_NAME
 # dataloader args, optional
-CFG.VAL.DATA.BATCH_SIZE = 8
+CFG.VAL.DATA.BATCH_SIZE = 4
 CFG.VAL.DATA.PREFETCH = False
 CFG.VAL.DATA.SHUFFLE = False
 CFG.VAL.DATA.NUM_WORKERS = 2
-CFG.VAL.DATA.PIN_MEMORY = True
+CFG.VAL.DATA.PIN_MEMORY = False
 
 # ================= test ================= #
 CFG.TEST = EasyDict()
 CFG.TEST.INTERVAL = 1
-# evluation
+# evaluation
 # test data
 CFG.TEST.DATA = EasyDict()
 # read data
 CFG.TEST.DATA.DIR = "datasets/" + CFG.DATASET_NAME
 # dataloader args, optional
-CFG.TEST.DATA.BATCH_SIZE = 8
+CFG.TEST.DATA.BATCH_SIZE = 4
 CFG.TEST.DATA.PREFETCH = False
 CFG.TEST.DATA.SHUFFLE = False
 CFG.TEST.DATA.NUM_WORKERS = 2
-CFG.TEST.DATA.PIN_MEMORY = True
+CFG.TEST.DATA.PIN_MEMORY = False

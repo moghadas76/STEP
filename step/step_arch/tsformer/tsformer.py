@@ -158,6 +158,7 @@ class TSFormer(nn.Module):
             hidden_states_full = torch.cat([hidden_states_unmasked, hidden_states_masked], dim=-2)  # B, N, P, d
 
             # decoding
+            # [8, 207, 168, 96]
             hidden_states_full = self.decoder(hidden_states_full)
             hidden_states_full = hidden_states_full[0] if type(hidden_states_full) == tuple else hidden_states_full
             hidden_states_full = self.decoder_norm(hidden_states_full)

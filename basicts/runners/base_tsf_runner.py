@@ -237,7 +237,10 @@ class BaseTimeSeriesForecastingRunner(BaseRunner):
         """
 
         iter_num = (epoch-1) * self.iter_per_epoch + iter_index
-        forward_return = list(self.forward(data=data, epoch=epoch, iter_num=iter_num, train=True))
+        forward_return = list(self.forward(data=data, epoch=epoch, iter_num=iter_num, train=True))[:-1]
+        # att = forward_return[2]
+        # torch.save(att, "/home/seyed/PycharmProjects/step/STEP/checkpoints/tensors/spatial_att.pt")
+        # del forward_return[2]
         # re-scale data
         prediction_rescaled = SCALER_REGISTRY.get(self.scaler["func"])(forward_return[0], **self.scaler["args"])
         real_value_rescaled = SCALER_REGISTRY.get(self.scaler["func"])(forward_return[1], **self.scaler["args"])
@@ -278,7 +281,7 @@ class BaseTimeSeriesForecastingRunner(BaseRunner):
 
     @torch.no_grad()
     @master_only
-    def test(self):
+    def test(self, src=None, k=None):
         """Evaluate the model.
 
         Args:
@@ -289,7 +292,7 @@ class BaseTimeSeriesForecastingRunner(BaseRunner):
         prediction = []
         real_value = []
         for _, data in enumerate(self.test_data_loader):
-            forward_return = self.forward(data, epoch=None, iter_num=None, train=False)
+            forward_return = self.forward(data, epoch=None, iter_num=None, train=False, src=src, k=k)
             prediction.append(forward_return[0])        # preds = forward_return[0]
             real_value.append(forward_return[1])        # testy = forward_return[1]
         prediction = torch.cat(prediction, dim=0)

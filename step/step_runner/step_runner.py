@@ -1,3 +1,5 @@
+import time
+
 import torch
 
 from basicts.runners import BaseTimeSeriesForecastingRunner
@@ -55,7 +57,7 @@ class STEPRunner(BaseTimeSeriesForecastingRunner):
 
         # preprocess
         future_data, history_data, long_history_data = data
-        history_data        = self.to_running_device(history_data)      # B, L, N, C
+        history_data = self.to_running_device(history_data)      # B, L, N, C
         long_history_data   = self.to_running_device(long_history_data)       # B, L, N, C
         future_data         = self.to_running_device(future_data)       # B, L, N, C
 
@@ -63,7 +65,15 @@ class STEPRunner(BaseTimeSeriesForecastingRunner):
         long_history_data = self.select_input_features(long_history_data)
 
         # feed forward
-        prediction, pred_adj, prior_adj, gsl_coefficient = self.model(history_data=history_data, long_history_data=long_history_data, future_data=None, batch_seen=iter_num, epoch=epoch)
+        prediction, pred_adj, prior_adj, gsl_coefficient = self.model(
+            history_data=history_data,
+            long_history_data=long_history_data,
+            future_data=future_data,
+            batch_seen=iter_num,
+            epoch=epoch,
+            src=kwargs.get("src"),
+            k=kwargs.get("k")
+        )
 
         batch_size, length, num_nodes, _ = future_data.shape
         assert list(prediction.shape)[:3] == [batch_size, length, num_nodes], \
@@ -73,3 +83,23 @@ class STEPRunner(BaseTimeSeriesForecastingRunner):
         prediction = self.select_target_features(prediction)
         real_value = self.select_target_features(future_data)
         return prediction, real_value, pred_adj, prior_adj, gsl_coefficient
+
+    # def test_process(self, cfg, train_epoch: int = None):
+    #     if train_epoch is None:
+    #         self.init_test(cfg)
+    #
+    #     self.on_test_start()
+    #
+    #     test_start_time = time.time()
+    #     self.model.eval()
+    #
+    #     # test
+    #     self.test(k=k, src=src)
+    #
+    #     test_end_time = time.time()
+    #     self.update_epoch_meter("test_time", test_end_time - test_start_time)
+    #     # print test meters
+    #     self.print_epoch_meters("test")
+    #     if train_epoch is not None:
+    #         # tensorboard plt meters
+    #         self.plt_epoch_meters("test", train_epoch // self.test_interval)
