@@ -35,15 +35,16 @@ class PositionalEncoding(nn.Module):
         input_data = input_data.view(batch_size, num_nodes, num_patches, num_feat)
         return input_data
 
+class RandomWalkUti:
 
-class GraphEncoding(nn.Module):
-    """Positional encoding."""
-
-    def load_random_walk(self, path):
+    @staticmethod
+    def load_random_walk(path, device):
         _, adj = load_adj(path, "scalap")
-        return self._calculate_random_walk_matrix(torch.Tensor(adj).to(self.device))
+        return RandomWalkUti._calculate_random_walk_matrix(torch.Tensor(adj).to(device))
 
-    def _calculate_random_walk_matrix(self, adj_mx):
+
+    @staticmethod
+    def _calculate_random_walk_matrix(adj_mx):
 
         # tf.Print(adj_mx, [adj_mx], message="This is adj: ")
 
@@ -56,12 +57,17 @@ class GraphEncoding(nn.Module):
         random_walk_mx = torch.mm(d_mat_inv, adj_mx)
         return random_walk_mx
 
+
+class GraphEncoding(nn.Module):
+    """Positional encoding."""
+
+
     def __init__(self, hidden_dim, dropout=0.1, num_nodes: int = 1000, adj_path="/home/seyed/PycharmProjects/step/STEP/datasets/METR-LA/adj_mx.pkl"):
         super().__init__()
         self.dropout = nn.Dropout(p=dropout)
         self.position_embedding = nn.Parameter(torch.empty(num_nodes, hidden_dim), requires_grad=True)
         self.device = self.position_embedding.device
-        self.random_walk = self.load_random_walk(path=adj_path)
+        self.random_walk = RandomWalkUti.load_random_walk(path=adj_path, device=self.device)
 
     def forward(self, input_data, index=None, abs_idx=None, **kwargs):
         """Positional encoding

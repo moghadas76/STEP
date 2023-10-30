@@ -2,7 +2,7 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 from torch_geometric.nn.models import GraphSAGE
-
+from torch.distributions import StudentT
 
 class nconv(nn.Module):
     def __init__(self):
@@ -127,10 +127,13 @@ class GraphWaveNet(nn.Module):
 
         self.end_conv_1 = nn.Conv2d(in_channels=skip_channels, out_channels=end_channels, kernel_size=(1, 1), bias=True)
         self.end_conv_2 = nn.Conv2d(in_channels=end_channels, out_channels=out_dim, kernel_size=(1, 1), bias=True)
-        self.graph_sage = GraphSAGE(in_channels=residual_channels, hidden_channels=residual_channels,
-                                    out_channels=residual_channels, dropout=dropout, num_layers=blocks)
-        self.graph_sage = self.graph_sage.to("cuda:1")
+        # self.graph_sage = GraphSAGE(in_channels=residual_channels, hidden_channels=residual_channels,
+        #                             out_channels=residual_channels, dropout=dropout, num_layers=blocks)
+        # self.graph_sage = self.graph_sage.to("cuda:1")
+        self.last_batch_norm = nn.BatchNorm2d(end_channels)
         self.receptive_field = receptive_field
+        self.decoder = nn.TransformerDecoderLayer(end_channels, 4)
+        self.decoder = nn.TransformerDecoder(self.decoder, 1)
 
     def _calculate_random_walk_matrix(self, adj_mx):
         B, N, N = adj_mx.shape
@@ -212,20 +215,20 @@ class GraphWaveNet(nn.Module):
                 skip = 0
             skip = s + skip
             # [8, 256, 207, 12]
-            new_adj = new_supports[-1].nonzero().t().contiguous()
-            # if self.gcn_bool and self.supports is not None:
-            #     if self.addaptadj:
-            #         # torch.Size([8, 32, 207, 12])
-            #         x = self.gconv[i](x, new_supports)
-            #         # [8, 32, 207, 12]
-            #     else:
-            #         x = self.gconv[i](x, self.supports)
-            # else:
-            #     x = self.residual_convs[i](x)
-            graph_sages = [self.graph_sage(x[..., -j].transpose(-1, -2), new_adj).unsqueeze(-1).contiguous() for j in range(1, x.size(3) + 1)]
-            graph_sages = torch.cat(graph_sages, dim=-1)
-            x = F.tanh(graph_sages)
-            x = x.transpose(1, 2)
+            # new_adj = new_supports[-1].nonzero().t().contiguous()
+            if self.gcn_bool and self.supports is not None:
+                if self.addaptadj:
+                    # torch.Size([8, 32, 207, 12])
+                    x = self.gconv[i](x, new_supports)
+                    # [8, 32, 207, 12]
+                else:
+                    x = self.gconv[i](x, self.supports)
+            else:
+                x = self.residual_convs[i](x)
+            # graph_sages = [self.graph_sage(x[..., -j].transpose(-1, -2), new_adj).unsqueeze(-1).contiguous() for j in range(1, x.size(3) + 1)]
+            # graph_sages = torch.cat(graph_sages, dim=-1)
+            # x = F.tanh(graph_sages)
+            # x = x.transpose(1, 2)
             x = x + residual[:, :, :, -x.size(3):]
 
             x = self.bn[i](x)
@@ -235,8 +238,7 @@ class GraphWaveNet(nn.Module):
         skip = skip + hidden_states
         x = F.relu(skip)
         x = F.relu(self.end_conv_1(x))
-        x = self.end_conv_2(x)
-
+        x = self.end_conv_2(self.last_batch_norm(x))
         # reshape output: [B, P, N, 1] -> [B, N, P]
         x = x.squeeze(-1).transpose(1, 2)
         return x

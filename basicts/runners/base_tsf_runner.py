@@ -237,7 +237,7 @@ class BaseTimeSeriesForecastingRunner(BaseRunner):
         """
 
         iter_num = (epoch-1) * self.iter_per_epoch + iter_index
-        forward_return = list(self.forward(data=data, epoch=epoch, iter_num=iter_num, train=True))[:-1]
+        forward_return = list(self.forward(data=data, epoch=epoch, iter_num=iter_num, train=True))
         # att = forward_return[2]
         # torch.save(att, "/home/seyed/PycharmProjects/step/STEP/checkpoints/tensors/spatial_att.pt")
         # del forward_return[2]

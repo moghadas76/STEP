@@ -68,7 +68,7 @@ class STEP(nn.Module):
         # self.gcn = nn.Conv2d(207,1, kernel_size=(1,1))
         # self.gcn_2 = nn.Conv2d(207,1, kernel_size=(156 + 1, 1))
         # self.trans_gcn = nn.ConvTranspose1d(96, 207, kernel_size=1)
-        self.load_pre_trained_model()
+        # self.load_pre_trained_model()
 
         # discrete graph learning
         self.discrete_graph_learning = DiscreteGraphLearning(**dgl_args)
@@ -138,8 +138,6 @@ class STEP(nn.Module):
         bernoulli_unnorm, hidden_states, adj_knn, sampled_adj = self.discrete_graph_learning(long_term_history,
                                                                                              self.tsformer)
 
-        # import remote_pdb;
-        # remote_pdb.set_trace()
         hidden_states = hidden_states[:, :, -1, :]  # Original
 
         # y_hat => ([16, 12, 207])

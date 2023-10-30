@@ -1,5 +1,7 @@
 import math
+from typing import Optional
 
+import torch
 import torch.nn as nn
 from einops.layers.torch import Rearrange
 
@@ -22,9 +24,21 @@ class FeedForward(nn.Module):
         return self.net(x)
 
 
+class GConv(nn.Module):
+    def __init__(self, A, dropout):
+        super().__init__()
+        self.A = A
+        self.dropout = nn.Dropout(dropout)
+
+    def forward(self, x):
+        self.A = self.A.to(x.device)
+        x = nn.GELU()(self.dropout(torch.einsum('nclv,vw->nclw', (x, self.A))))
+        return x
+
+
 class MixerBlock(nn.Module):
 
-    def __init__(self, dim, num_patch, token_dim, channel_dim, dropout=0.):
+    def __init__(self, dim, num_patch, node_number, token_dim, channel_dim, dropout=0., adj=Optional[torch.Tensor]):
         super().__init__()
         self.token_mix = nn.Sequential(
             nn.LayerNorm(dim),
@@ -36,10 +50,18 @@ class MixerBlock(nn.Module):
             nn.LayerNorm(dim),
             FeedForward(dim, channel_dim, dropout),
         )
+        self.node_mixer = nn.Sequential(
+            nn.LayerNorm(dim),
+            Rearrange('b n p d -> b p d n'),
+            GConv(adj, dropout),
+            FeedForward(node_number, node_number, dropout),
+            Rearrange('b p d n -> b n p d'),
+        )
 
     def forward(self, x):
         x = x + self.token_mix(x)
         x = x + self.channel_mix(x)
+        x = x + self.node_mixer(x)
         return x
 
 
@@ -48,18 +70,17 @@ class MLPMixerEncoder(nn.Module):
                  nlayer,
                  nhid,
                  n_patches,
+                 node_number,
                  with_final_norm=True,
-                 dropout=0, mask=False):
+                 dropout=0, mask=False, adj=None):
         super().__init__()
         self.n_patches = n_patches
         self.nhid = nhid
         self.with_final_norm = with_final_norm
         self.mixer_blocks = nn.ModuleList(
-            [MixerBlock(nhid, self.n_patches, nhid*4, nhid//2, dropout=dropout) for _ in range(nlayer)])
+            [MixerBlock(nhid, self.n_patches, node_number, nhid*4, nhid//2, dropout=dropout, adj=adj) for _ in range(nlayer)])
         if self.with_final_norm:
             self.layer_norm = nn.LayerNorm(nhid)
-        if mask:
-            self.out_proj = nn.Linear(42, 168)
 
     def forward(self, x, mask=False):
         # B, N, L, D = x.shape
@@ -68,6 +89,4 @@ class MLPMixerEncoder(nn.Module):
             x = mixer_block(x)
         if self.with_final_norm:
             x = self.layer_norm(x)
-        if mask:
-            x = self.out_proj(x.transpose(-1, -2)).transpose(-1, -2)
-        return x
+        return x, x

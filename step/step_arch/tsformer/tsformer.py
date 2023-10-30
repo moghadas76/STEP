@@ -5,13 +5,9 @@ from timm.models.vision_transformer import trunc_normal_
 from typing import Tuple, Any, Optional
 from .patch import PatchEmbedding
 from .mask import MaskGenerator
-from .positional_encoding import PositionalEncoding
+from .positional_encoding import PositionalEncoding, RandomWalkUti
 from .transformer_layers import TransformerLayers
-from STEP.basicts.utils import load_pkl
-from .positional_encoding import GraphEncoding
-import seaborn
-from .mask import KnnMask
-
+from .mlp_mixer import MLPMixerEncoder
 
 def unshuffle(shuffled_tokens):
     dic = {}
@@ -60,7 +56,9 @@ class TSFormer(nn.Module):
         print(self.mask_generator_cls)
         self.mask = mask_generator_cls(tks, mask_ratio)
         # encoder
-        self.encoder = TransformerLayers(embed_dim, encoder_depth, mlp_ratio, num_heads, dropout)
+        # self.encoder = TransformerLayers(embed_dim, encoder_depth, mlp_ratio, num_heads, dropout)
+        adj = RandomWalkUti.load_random_walk(path=adj_path, device="cuda:0")
+        self.encoder = MLPMixerEncoder(8, 96, 168, node_number=node_numbers, dropout=dropout, adj=adj)
 
         # decoder specifics
         # transform layer
@@ -68,7 +66,8 @@ class TSFormer(nn.Module):
         # # mask token
         self.mask_token = nn.Parameter(torch.zeros(1, 1, 1, embed_dim))
         # # decoder
-        self.decoder = TransformerLayers(embed_dim, decoder_depth, mlp_ratio, num_heads, dropout)
+        # self.decoder = TransformerLayers(embed_dim, decoder_depth, mlp_ratio, num_heads, dropout)
+        # self.decoder = MLPMixerEncoder(8, 168, 168, dropout=dropout, mask=True)
 
         # # prediction (reconstruction) layer
         self.output_layer = nn.Linear(embed_dim, patch_size)
@@ -159,6 +158,7 @@ class TSFormer(nn.Module):
 
             # decoding
             # [8, 207, 168, 96]
+            breakpoint()
             hidden_states_full = self.decoder(hidden_states_full)
             hidden_states_full = hidden_states_full[0] if type(hidden_states_full) == tuple else hidden_states_full
             hidden_states_full = self.decoder_norm(hidden_states_full)

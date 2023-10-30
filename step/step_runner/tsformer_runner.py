@@ -7,8 +7,6 @@ import matplotlib.pyplot as plt
 from easytorch.utils.dist import master_only
 from basicts.data.registry import SCALER_REGISTRY
 from basicts.runners import BaseTimeSeriesForecastingRunner
-from xformers.components import MultiHeadDispatch
-from xformers.components.attention import BlockSparseAttention
 
 OUTPUT_DIR = "/home/seyed/PycharmProjects/step/STEP/checkpoints/tensors"
 

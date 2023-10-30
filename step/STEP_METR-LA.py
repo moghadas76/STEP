@@ -89,7 +89,7 @@ CFG.MODEL.DDP_FIND_UNUSED_PARAMETERS = True
 CFG.TRAIN = EasyDict()
 CFG.TRAIN.LOSS = step_loss
 CFG.TRAIN.OPTIM = EasyDict()
-CFG.TRAIN.OPTIM.TYPE = "Adam"
+CFG.TRAIN.OPTIM.TYPE = "AdamW"
 CFG.TRAIN.OPTIM.PARAM= {
     "lr":0.005,
     "weight_decay":1.0e-5,
