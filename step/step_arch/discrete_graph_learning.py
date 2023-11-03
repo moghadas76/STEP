@@ -125,7 +125,6 @@ class DiscreteGraphLearning(nn.Module):
             torch.Tensor: the kNN graph with shape [B, N, N], which is used to guide the training of the dependency graph.
             torch.Tensor: the sampled graph with shape [B, N, N].
         """
-
         device = long_term_history.device
         batch_size, _, num_nodes, _ = long_term_history.shape
         # generate global feature

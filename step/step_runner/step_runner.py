@@ -65,7 +65,7 @@ class STEPRunner(BaseTimeSeriesForecastingRunner):
         long_history_data = self.select_input_features(long_history_data)
 
         # feed forward
-        prediction, pred_adj, prior_adj, gsl_coefficient = self.model(
+        prediction, pred_adj, prior_adj, gsl_coefficient, query, pos, neg = self.model(
             history_data=history_data,
             long_history_data=long_history_data,
             future_data=future_data,
@@ -82,7 +82,7 @@ class STEPRunner(BaseTimeSeriesForecastingRunner):
         # post process
         prediction = self.select_target_features(prediction)
         real_value = self.select_target_features(future_data)
-        return prediction, real_value, pred_adj, prior_adj, gsl_coefficient
+        return prediction, real_value, pred_adj, prior_adj, gsl_coefficient, query, pos, neg
 
     # def test_process(self, cfg, train_epoch: int = None):
     #     if train_epoch is None:

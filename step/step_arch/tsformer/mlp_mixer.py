@@ -25,14 +25,13 @@ class FeedForward(nn.Module):
 
 
 class GConv(nn.Module):
-    def __init__(self, A, dropout):
+    def __init__(self, A):
         super().__init__()
         self.A = A
-        self.dropout = nn.Dropout(dropout)
 
     def forward(self, x):
         self.A = self.A.to(x.device)
-        x = nn.GELU()(self.dropout(torch.einsum('nclv,vw->nclw', (x, self.A))))
+        x = torch.einsum('nclv,vw->nclw', (x, self.A))
         return x
 
 
@@ -53,7 +52,7 @@ class MixerBlock(nn.Module):
         self.node_mixer = nn.Sequential(
             nn.LayerNorm(dim),
             Rearrange('b n p d -> b p d n'),
-            GConv(adj, dropout),
+            GConv(adj),
             FeedForward(node_number, node_number, dropout),
             Rearrange('b p d n -> b n p d'),
         )

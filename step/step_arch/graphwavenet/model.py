@@ -11,9 +11,9 @@ class nconv(nn.Module):
     def forward(self, x, A):
         A = A.to(x.device)
         if len(A.shape) == 3:
-            x = torch.einsum('ncvl,nvw->ncwl', (x, A))
+            x = F.relu(torch.einsum('ncvl,nvw->ncwl', (x, A)))
         else:
-            x = torch.einsum('ncvl,vw->ncwl', (x, A))
+            x = F.relu(torch.einsum('ncvl,vw->ncwl', (x, A)))
         return x.contiguous()
 
 
@@ -47,7 +47,7 @@ class gcn(nn.Module):
                 x1 = x2
 
         h = torch.cat(out, dim=1)
-        h = self.mlp(h)
+        h = F.relu(self.mlp(h))
         h = F.dropout(h, self.dropout, training=self.training)
         # [8, 32, 207, 12]
         return h
@@ -132,8 +132,8 @@ class GraphWaveNet(nn.Module):
         # self.graph_sage = self.graph_sage.to("cuda:1")
         self.last_batch_norm = nn.BatchNorm2d(end_channels)
         self.receptive_field = receptive_field
-        self.decoder = nn.TransformerDecoderLayer(end_channels, 4)
-        self.decoder = nn.TransformerDecoder(self.decoder, 1)
+        # self.decoder = nn.TransformerDecoderLayer(end_channels, 4)
+        # self.decoder = nn.TransformerDecoder(self.decoder, 1)
 
     def _calculate_random_walk_matrix(self, adj_mx):
         B, N, N = adj_mx.shape

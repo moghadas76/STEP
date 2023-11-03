@@ -158,7 +158,6 @@ class TSFormer(nn.Module):
 
             # decoding
             # [8, 207, 168, 96]
-            breakpoint()
             hidden_states_full = self.decoder(hidden_states_full)
             hidden_states_full = hidden_states_full[0] if type(hidden_states_full) == tuple else hidden_states_full
             hidden_states_full = self.decoder_norm(hidden_states_full)

@@ -1,5 +1,8 @@
+import random
+from typing import Tuple, Any
+
 import torch
-from torch import nn
+from torch import nn, Tensor
 from functools import lru_cache
 from .tsformer import TSFormer
 from .graphwavenet import GraphWaveNet
@@ -71,6 +74,9 @@ class STEP(nn.Module):
         # self.load_pre_trained_model()
 
         # discrete graph learning
+        self.mem_num = 20
+        self.mem_dim = 96
+        self.memory = self.construct_memory()
         self.discrete_graph_learning = DiscreteGraphLearning(**dgl_args)
 
     def load_pre_trained_model(self):
@@ -100,8 +106,28 @@ class STEP(nn.Module):
         cands = knn(graph_obj, src, k)
         return cands
 
+    def construct_memory(self):
+        memory_dict = nn.ParameterDict()
+        # self.mem_num = 20
+        # self.mem_dim = 64
+        memory_dict['Memory'] = nn.Parameter(torch.randn(self.mem_num, self.mem_dim), requires_grad=True)  # (M, d)
+        memory_dict['Wq'] = nn.Parameter(torch.randn(96, self.mem_dim),
+                                         requires_grad=True)  # project to query
+        for param in memory_dict.values():
+            nn.init.xavier_normal_(param)
+        return memory_dict
+
+    def query_memory(self, h_t: torch.Tensor):
+        query = torch.matmul(h_t, self.memory['Wq'])  # (B, N, d)
+        att_score = torch.softmax(torch.matmul(query, self.memory['Memory'].t()), dim=-1)  # alpha: (B, N, M)
+        value = torch.matmul(att_score, self.memory['Memory'])  # (B, N, d)
+        _, ind = torch.topk(att_score, k=2, dim=-1)
+        pos = self.memory['Memory'][ind[:, :, 0]]  # B, N, d
+        neg = self.memory['Memory'][ind[:, :, 1]]  # B, N, d
+        return value, query, pos, neg
+
     def forward(self, history_data: torch.Tensor, long_history_data: torch.Tensor, future_data: torch.Tensor,
-                batch_seen: int, epoch: int, **kwargs) -> torch.Tensor:
+                batch_seen: int, epoch: int, **kwargs) -> tuple[Any, Any, Any, float | int, Tensor, Any, Any]:
         """Feed forward of STEP.
 
         Args:
@@ -121,6 +147,13 @@ class STEP(nn.Module):
         long_term_history = long_history_data
 
         # STEP
+        # import matplotlib.pyplot as plt
+        # fig, axs = plt.subplots(5, 5)
+        # for ind_i in range(5):
+        #     for ind_j in range(5):
+        #         axs[ind_i][ind_j].plot(short_term_history[0,:, 5*ind_i + ind_j, 0].cpu().data.numpy())
+        # plt.show()
+        # plt.close()
         batch_size, _, num_nodes, _ = short_term_history.shape
 
         # discrete graph learning & feed forward of TSFormer
@@ -137,11 +170,14 @@ class STEP(nn.Module):
         # hidden_states -> torch.Size([B, N, #PATCHes, d])
         bernoulli_unnorm, hidden_states, adj_knn, sampled_adj = self.discrete_graph_learning(long_term_history,
                                                                                              self.tsformer)
-
         hidden_states = hidden_states[:, :, -1, :]  # Original
-
+        hidden_states, query, pos, neg = self.query_memory(hidden_states)
         # y_hat => ([16, 12, 207])
-        y_hat = self.backend(short_term_history, hidden_states=hidden_states, sampled_adj=sampled_adj).transpose(1, 2)
+        #Sampling
+        _sampled_adj = sampled_adj
+        if random.random() < 0.5:
+            _sampled_adj = adj_knn
+        y_hat = self.backend(short_term_history, hidden_states=hidden_states, sampled_adj=_sampled_adj).transpose(1, 2)
 
         # f_data = future_data.permute(0, 2, 3, 1)
         # f_data = f_data[:,:, [0], :]
@@ -165,5 +201,6 @@ class STEP(nn.Module):
         else:
             gsl_coefficient = 0
         # print(y_hat.shape, "77777")
-        return y_hat.unsqueeze(-1), bernoulli_unnorm.softmax(-1)[..., 0].clone().reshape(batch_size, num_nodes,
-                                                                                         num_nodes), adj_knn, gsl_coefficient
+        return (y_hat.unsqueeze(-1), bernoulli_unnorm.softmax(-1)[..., 0].clone().reshape(batch_size, num_nodes,
+                                                                                         num_nodes), adj_knn, gsl_coefficient,
+                query, pos, neg)
