@@ -16,6 +16,9 @@ from .step_data import ForecastingDataset
 
 CFG = EasyDict()
 
+CFG.MD5 = "f8cbc6b5dc005fca0774a226a394b6d9"
+# Resume
+
 # ================= general ================= #
 CFG.DESCRIPTION = "STEP(METR-LA) configuration"
 CFG.RUNNER = STEPRunner
@@ -110,6 +113,7 @@ CFG.TRAIN.CKPT_SAVE_DIR = os.path.join(
     "checkpoints",
     "_".join([CFG.MODEL.NAME, str(CFG.TRAIN.NUM_EPOCHS)])
 )
+CFG.TRAIN.NUM_EPOCHS = 300
 # train data
 CFG.TRAIN.DATA = EasyDict()
 CFG.TRAIN.NULL_VAL = 0.0
