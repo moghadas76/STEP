@@ -1,10 +1,14 @@
+import datetime
 import math
 import functools
-from typing import Tuple, Union, Optional
+import time
 
+import matplotlib.pyplot as plt
+from typing import Tuple, Union, Optional
 import torch
 import numpy as np
 from easytorch.utils.dist import master_only
+writer = None
 
 from .base_runner import BaseRunner
 from ..data import SCALER_REGISTRY
@@ -297,6 +301,20 @@ class BaseTimeSeriesForecastingRunner(BaseRunner):
             real_value, **self.scaler["args"])
         # summarize the results.
         # test performance of different horizon
+        for i in range(30):
+            plt.figure(figsize=(140, 140))
+            for k in range(4):
+                plt.subplot(2, 2, k + 1)
+                # for j in range(2):
+                #     c, d = [], []
+                #     for i in range(12):
+                #         c.append(real_value.cpu().detach().numpy()[j, i, k, 0])
+                #         d.append(prediction.cpu().detach().numpy()[j, i, k, 0])
+                plt.plot(range(1 + 0, 1+ 12), real_value[i, :, k, 0].cpu().detach().numpy(), c='b')
+                plt.plot(range(1 + 0, 1 + 12), prediction[i, :, k, 0].cpu().detach().numpy(), c='r')
+            plt.title('Test prediction vs Target')
+            plt.savefig(f'/home/seyed/PycharmProjects/step/STEP/plots/test_results{str(datetime.datetime.now())}.png')
+            plt.cla()
         for i in self.evaluation_horizons:
             # For horizon i, only calculate the metrics **at that time** slice here.
             pred = prediction[:, i, :, :]
