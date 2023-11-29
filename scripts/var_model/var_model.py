@@ -30,17 +30,17 @@ def masked_mae_tf(preds, labels, null_val=np.nan):
     :param null_val:
     :return:
     """
-    if np.isnan(null_val):
-        mask = ~np.is_nan(labels)
-    else:
-        mask = np.not_equal(labels, null_val)
-    mask = mask.astype(int).astype(float)
-    mask /= np.mean(mask)
-    mask = np.where(np.isnan(mask), np.zeros_like(mask), mask)
-    loss = np.abs(tf.subtract(preds, labels))
-    loss = loss * mask
-    loss = np.where(np.isnan(loss), np.zeros_like(loss), loss)
-    return np.mean(loss)
+    # preds = preds.values
+    with np.errstate(divide='ignore', invalid='ignore'):
+        if np.isnan(null_val):
+            mask = ~np.isnan(labels)
+        else:
+            mask = np.not_equal(labels, null_val)
+        mask = mask.astype('float32')
+        mask /= np.mean(mask)
+        mae = np.abs(np.subtract(preds, labels)).astype('float32')
+        mae = np.nan_to_num(mae * mask)
+        return np.mean(mae)
 
 
 def fit_var_model(data: pd.DataFrame, test_data: pd.DataFrame, hold_out: pd.DataFrame, target_node_id: int, mean: float= 0.0, std: float=0.0) -> Tuple[
@@ -51,28 +51,33 @@ def fit_var_model(data: pd.DataFrame, test_data: pd.DataFrame, hold_out: pd.Data
     HORIZON = 12
     # for index, batch in enumerate(mit.chunked(test_data, WINDOW)):
     model = None
-    try:
-        model = VAR(data)
-    except ValueError:
-        return None, str(str(target_node_id) + "__Isolated")
-    model_fitted = model.fit(maxlags=12, trend="ctt", verbose=True)
 
     # Forecast the next 10 time steps
     n_lags = 12
     max_n_forwards = 12
     n_test = len(test_data) + len(hold_out)
     n_forwards = [1, 3, 6, 12]
-    n_train = len(data)
     n_output = 207
     n_sample = len(test_data) + len(hold_out) + len(data)
+    n_train = n_sample - n_test
+    try:
+        # breakpoint()
+        model = VAR(data[:n_sample - int(round(n_sample * 0.2))])
+    except ValueError:
+        return None, str(str(target_node_id) + "__Isolated")
+
+    model_fitted = model.fit(maxlags=12, trend="ctt", verbose=True)
     # Convert the forecasted values to a DataFrame
     df = pd.concat([data, test_data, hold_out])
+    print((len(n_forwards), n_test, n_output))
     result = np.zeros(shape=(len(n_forwards), n_test, n_output))
     start = n_train - n_lags - max_n_forwards + 1
+    print(start, n_sample)
     for input_ind in range(start, n_sample - n_lags):
         prediction = model_fitted.forecast(df.values[input_ind: input_ind + n_lags], max_n_forwards)
         for i, n_forward in enumerate(n_forwards):
             result_ind = input_ind - n_train + n_lags + n_forward - 1
+            # print(result_ind)
             if 0 <= result_ind < n_test:
                 result[i, result_ind, :] = prediction[n_forward - 1, :]
 
@@ -84,8 +89,9 @@ def fit_var_model(data: pd.DataFrame, test_data: pd.DataFrame, hold_out: pd.Data
         df_predicts.append(df_predict)
 
     for steps in range(len(n_forwards)):
+        # breakpoint()
         # rmse_result = rmse(re_standard_transform(test, mean=mean, std=std).values, df_predicts[steps].values)
-        mae_result = masked_mae_tf(re_standard_transform(test, mean=mean, std=std).values, df_predicts[steps].values, 0)
+        mae_result = masked_mae_tf(df_predicts[steps].values, re_standard_transform(test, mean=mean, std=std).values, 0)
         # print(f"Horizon {n_forwards[steps]} : Validatipon RMSE: {rmse_result}", "<------> Node ID:", target_node_id)
         print(f"Horizon {n_forwards[steps]} : Validatipon MAE: {mae_result}", "<------> Node ID:", target_node_id)
 
@@ -128,7 +134,7 @@ def train(data: pd.DataFrame, data_test: pd.DataFrame, hold_out: pd.DataFrame, n
     #         else:
     #             subprocess.check_output(f"touch /home/seyed/PycharmProjects/step/STEP/checkpoints/var_model/{node_id}.pkl", shell=True, text=True)
             # print("Result", result)
-    fit_var_model(data, data_test, data_valid, 0, mean=54.40552365611338, std=19.494882160412377)
+    fit_var_model(data, data_test, data_valid, 0, mean=54.45524850080463, std=19.514737115784587)
 
 
 def load_dataset(output_dir="/home/seyed/PycharmProjects/step/STEP/datasets/raw_data/METR-LA") -> Tuple[
@@ -144,9 +150,9 @@ def load_dataset(output_dir="/home/seyed/PycharmProjects/step/STEP/datasets/raw_
     print("raw time series shape: {0}".format(data.shape))
 
     l, n, f = data.shape
-    num_samples = l - (history_seq_len + future_seq_len) + 1
+    num_samples = l
     # keep same number of validation and test samples with Graph WaveNet (input 12, output 12)
-    test_num_short = 6850
+    test_num_short = 3429
     valid_num_short = 3425
     train_num_short = num_samples - valid_num_short - test_num_short
     # train_num_short = round(num_samples * train_ratio)

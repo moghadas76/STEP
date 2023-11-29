@@ -419,17 +419,18 @@ def var_predict(df, n_forwards=(1, 3), n_lags=12, test_ratio=0.2):
     n_test = int(round(n_sample * test_ratio))
     n_train = n_sample - n_test
     df_train, df_test = df[:n_train], df[n_train:]
-
     scaler = StandardScaler(mean=df_train.values.mean(), std=df_train.values.std())
     data = scaler.transform(df_train.values)
+    breakpoint()
     var_model = VAR(data)
     var_result = var_model.fit(n_lags)
     max_n_forwards = np.max(n_forwards)
     # n_forwards : [1, 3, 6, 12]
     # Do forecasting.
-    breakpoint()
+    print((len(n_forwards), n_test, n_output))
     result = np.zeros(shape=(len(n_forwards), n_test, n_output))
     start = n_train - n_lags - max_n_forwards + 1
+    print(start, n_sample)
     for input_ind in range(start, n_sample - n_lags):
         prediction = var_result.forecast(scaler.transform(df.values[input_ind: input_ind + n_lags]), max_n_forwards)
         for i, n_forward in enumerate(n_forwards):
@@ -471,11 +472,12 @@ def eval_historical_average(traffic_reading_df, period):
 
 def eval_var(traffic_reading_df, n_lags=3):
     n_forwards = [1, 3, 6, 12]
-    y_predicts, y_test = var_predict(traffic_reading_df, n_forwards=n_forwards, n_lags=n_lags,
+    y_predicts, y_test = var_predict(traffic_reading_df, n_forwards=n_forwards, n_lags=12,
                                      test_ratio=0.2)
     logger.info('VAR (lag=%d)' % n_lags)
     logger.info('Model\tHorizon\tRMSE\tMAPE\tMAE')
     for i, horizon in enumerate(n_forwards):
+        # breakpoint()
         rmse = masked_rmse_np(preds=y_predicts[i].values, labels=y_test.values, null_val=0)
         mape = masked_mape_np(preds=y_predicts[i].values, labels=y_test.values, null_val=0)
         mae = masked_mae_np(preds=y_predicts[i].values, labels=y_test.values, null_val=0)
@@ -486,9 +488,9 @@ def eval_var(traffic_reading_df, n_lags=3):
 def main(args):
     df = np.load("/home/seyed/PycharmProjects/step/STEP/datasets/raw_data/METR-LA/metr.npz")
     traffic_reading_df = pd.DataFrame(df["x"], pd.DatetimeIndex(df["z"].astype('datetime64[ns]'), freq="5T"))
-    eval_static(traffic_reading_df)
-    eval_historical_average(traffic_reading_df, period=7 * 24 * 12)
-    eval_var(traffic_reading_df, n_lags=3)
+    # eval_static(traffic_reading_df)
+    # eval_historical_average(traffic_reading_df, period=7 * 24 * 12)
+    eval_var(traffic_reading_df, n_lags=12)
 
 
 if __name__ == '__main__':
