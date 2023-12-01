@@ -1,3 +1,4 @@
+import copy
 import random
 import more_itertools as mit
 import numpy as np
@@ -118,23 +119,23 @@ def fit_var_model(data: pd.DataFrame, test_data: pd.DataFrame, hold_out: pd.Data
 def train(data: pd.DataFrame, data_test: pd.DataFrame, hold_out: pd.DataFrame, node_count: int,
           neighbours: Dict[NODE, Dict[str, Dict[str, List[NODE]]]]):
     node_ids = list(range(node_count))
-    # data_repo = []
-    # for node_id in node_ids:
-    #     data_repo.append((
-    #         data[list(map(str, neighbours[node_id]["1_hop"]["nodes"]))],
-    #         data_test[list(map(str, neighbours[node_id]["1_hop"]["nodes"]))],
-    #         hold_out[list(map(str, neighbours[node_id]["1_hop"]["nodes"]))],
-    #         node_id))
-    # with Pool() as pool:
-    #     result = pool.starmap(fit_var_model, data_repo)
-    #     for model, node_id in result:
-    #         # print("saving the result for the node id", node_id)
-    #         if model:
-    #             model.save(f"/home/seyed/PycharmProjects/step/STEP/checkpoints/var_model/predictor_node_{node_id}.pkl")
-    #         else:
-    #             subprocess.check_output(f"touch /home/seyed/PycharmProjects/step/STEP/checkpoints/var_model/{node_id}.pkl", shell=True, text=True)
-            # print("Result", result)
-    fit_var_model(data, data_test, data_valid, 0, mean=54.45524850080463, std=19.514737115784587)
+    data_repo = []
+    for node_id in node_ids:
+        data_repo.append((
+            data[list(map(str, neighbours[node_id]["1_hop"]["nodes"]))],
+            data_test[list(map(str, neighbours[node_id]["1_hop"]["nodes"]))],
+            hold_out[list(map(str, neighbours[node_id]["1_hop"]["nodes"]))],
+            node_id))
+    with Pool() as pool:
+        result = pool.starmap(fit_var_model, data_repo)
+        for model, node_id in result:
+            # print("saving the result for the node id", node_id)
+            if model:
+                model.save(f"/home/seyed/PycharmProjects/step/STEP/checkpoints/var_model/predictor_node_{node_id}.pkl")
+            else:
+                subprocess.check_output(f"touch /home/seyed/PycharmProjects/step/STEP/checkpoints/var_model/{node_id}.pkl", shell=True, text=True)
+            print("Result", result)
+    # fit_var_model(data, data_test, data_valid, 0, mean=54.45524850080463, std=19.514737115784587)
 
 
 def load_dataset(output_dir="/home/seyed/PycharmProjects/step/STEP/datasets/raw_data/METR-LA") -> Tuple[
@@ -188,6 +189,7 @@ def load_dataset(output_dir="/home/seyed/PycharmProjects/step/STEP/datasets/raw_
 def load_adj(show=False):
     G, net = RandomWalkUti.load_random_walk(
         "/home/seyed/PycharmProjects/step/STEP/datasets/raw_data/METR-LA/adj_METR-LA.pkl")
+    orig_g = copy.deepcopy(G)
     if show:
         pos = nx.spring_layout(net)
         nx.draw(G, pos, with_labels=True, labels=nx.get_node_attributes(G, 'label'))
@@ -199,10 +201,10 @@ def load_adj(show=False):
         sub = G.subgraph(list(G.neighbors(node)))
         node_nns[node]["1_hop"]["nodes"] = list(sub.nodes())
         node_nns[node]["1_hop"]["edges"] = list(sub.edges())
-    return node_nns, net
+    return node_nns, G, net, orig_g
 
 
 if __name__ == '__main__':
-    node_nns, _ = load_adj()
+    node_nns, _, _ = load_adj()
     data_train, data_valid, data_test = load_dataset()
     train(data_train, data_valid, data_test, len(node_nns), node_nns)
