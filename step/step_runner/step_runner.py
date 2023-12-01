@@ -98,4 +98,14 @@ class STEPRunner(BaseTimeSeriesForecastingRunner):
         # post process
         prediction = self.select_target_features(prediction)
         real_value = self.select_target_features(future_data)
-        return prediction, real_value, prior_adj, prior_adj, gsl_coefficient
+        return prediction, real_value, pred_adj, prior_adj, gsl_coefficient
+
+    def tensorboard_tracking(self):
+        from torch.utils.tensorboard import SummaryWriter
+        writer = SummaryWriter("/home/seyed/PycharmProjects/step/STEP/checkpoints/Weights")
+        # writer.add_graph(self.model, [history_data, long_history_data, None, iter_num, epoch])
+
+        # Log weights and biases
+        for ind, (name, param) in enumerate(self.model.named_parameters()):
+            if "backend." in name:
+                writer.add_histogram(name, param, global_step=0)  # You can use a proper global step value
