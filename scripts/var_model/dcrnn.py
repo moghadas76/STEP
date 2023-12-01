@@ -1,12 +1,17 @@
 import argparse
+import json
+import subprocess
+
 import numpy as np
 import pandas as pd
 
 from statsmodels.tsa.vector_ar.var_model import VAR
-
-# from lib import utils
+from multiprocessing import Pool
+from typing import Tuple, List, TypeVar, Dict, Optional
+from scripts.var_model.var_model import load_adj
+NODE = TypeVar("NODE")
 import numpy as np
-import tensorflow as tf
+import matplotlib.pyplot as plt
 
 
 def masked_mse_tf(preds, labels, null_val=np.nan):
@@ -406,7 +411,7 @@ def static_predict(df, n_forward, test_ratio=0.2):
     return y_predict, y_test
 
 
-def var_predict(df, n_forwards=(1, 3), n_lags=12, test_ratio=0.2):
+def var_predict(df, n_forwards=(1, 3), n_lags=3, test_ratio=0.2):
     """
     Multivariate time series forecasting using Vector Auto-Regressive Model.
     :param df: pandas.DataFrame, index: time, columns: sensor id, content: data.
@@ -421,16 +426,17 @@ def var_predict(df, n_forwards=(1, 3), n_lags=12, test_ratio=0.2):
     df_train, df_test = df[:n_train], df[n_train:]
     scaler = StandardScaler(mean=df_train.values.mean(), std=df_train.values.std())
     data = scaler.transform(df_train.values)
-    breakpoint()
-    var_model = VAR(data)
-    var_result = var_model.fit(n_lags)
+    var_model = None
+    try:
+        var_model = VAR(data)
+    except:
+        return None, None, var_model
+    var_result = var_model.fit(n_lags, ic="fpe")
     max_n_forwards = np.max(n_forwards)
     # n_forwards : [1, 3, 6, 12]
     # Do forecasting.
-    print((len(n_forwards), n_test, n_output))
     result = np.zeros(shape=(len(n_forwards), n_test, n_output))
     start = n_train - n_lags - max_n_forwards + 1
-    print(start, n_sample)
     for input_ind in range(start, n_sample - n_lags):
         prediction = var_result.forecast(scaler.transform(df.values[input_ind: input_ind + n_lags]), max_n_forwards)
         for i, n_forward in enumerate(n_forwards):
@@ -442,7 +448,7 @@ def var_predict(df, n_forwards=(1, 3), n_lags=12, test_ratio=0.2):
     for i, n_forward in enumerate(n_forwards):
         df_predict = pd.DataFrame(scaler.inverse_transform(result[i]), index=df_test.index, columns=df_test.columns)
         df_predicts.append(df_predict)
-    return df_predicts, df_test
+    return df_predicts, df_test, var_result
 
 
 def eval_static(traffic_reading_df):
@@ -464,25 +470,85 @@ def eval_historical_average(traffic_reading_df, period):
     mape = masked_mape_np(preds=y_predict.values, labels=y_test.values, null_val=0)
     mae = masked_mae_np(preds=y_predict.values, labels=y_test.values, null_val=0)
     logger.info('Historical Average')
-    logger.info('\t'.join(['Model', 'Horizon', 'RMSE', 'MAPE', 'MAE']))
+    logger.info('\t'.join(['Node ID','Model', 'Horizon', 'RMSE', 'MAPE', 'MAE']))
     for horizon in [1, 3, 6, 12]:
         line = 'HA\t%d\t%.2f\t%.2f\t%.2f' % (horizon, rmse, mape * 100, mae)
         logger.info(line)
 
 
-def eval_var(traffic_reading_df, n_lags=3):
+def eval_var(traffic_reading_df, n_lags=3, node_id=0):
     n_forwards = [1, 3, 6, 12]
-    y_predicts, y_test = var_predict(traffic_reading_df, n_forwards=n_forwards, n_lags=12,
+    y_predicts, y_test, model = var_predict(traffic_reading_df, n_forwards=n_forwards, n_lags=3,
                                      test_ratio=0.2)
+    if not y_predicts:
+        return -1, -1, -1, None, node_id
     logger.info('VAR (lag=%d)' % n_lags)
-    logger.info('Model\tHorizon\tRMSE\tMAPE\tMAE')
+    logger.info('Node ID\tModel\tHorizon\tRMSE\tMAPE\tMAE')
     for i, horizon in enumerate(n_forwards):
         # breakpoint()
         rmse = masked_rmse_np(preds=y_predicts[i].values, labels=y_test.values, null_val=0)
         mape = masked_mape_np(preds=y_predicts[i].values, labels=y_test.values, null_val=0)
         mae = masked_mae_np(preds=y_predicts[i].values, labels=y_test.values, null_val=0)
-        line = 'VAR\t%d\t%.2f\t%.2f\t%.2f' % (horizon, rmse, mape * 100, mae)
+        line = 'Node\t%d VAR\t%d\t%.2f\t%.2f\t%.2f\n' % (node_id, horizon, rmse, mape * 100, mae)
         logger.info(line)
+    return mae, mape, rmse, model, node_id
+
+def post_processsing(result):
+    df = pd.DataFrame(result, columns=["mae", "mape", "rmse"])
+    # df.hist(bins=10, column="mae", figsize=(20, 6))
+    df.to_csv("/home/seyed/PycharmProjects/step/STEP/checkpoints/var_model/results/res_2_hop.csv")
+
+
+def train(data: pd.DataFrame, node_count: int,
+          neighbours: Dict[NODE, Dict[str, Dict[str, List[NODE]]]], n_lags=12):
+    def second_extractor(node_id: int):
+        ls = []
+        seconds = set()
+        one_hop = neighbours[node_id]["1_hop"]["nodes"]
+        for nd in one_hop:
+            seconds.update(neighbours[nd]["1_hop"]["nodes"])
+        ls.extend(list(seconds - set(one_hop)))
+        return ls
+
+    node_ids = list(range(node_count))
+    data_repo = []
+    for node_id in node_ids:
+        data_repo.append((
+            # data[list(map(int, neighbours[node_id]["1_hop"]["nodes"]))],
+            data[second_extractor(node_id)],
+            n_lags,
+            node_id
+        ))
+    filterd_data_repo = [data_repo[i] for i in [47, 148, 127, 56, 137]]
+    results = np.zeros((node_count, 3))
+    with Pool() as pool:
+        result = pool.starmap(eval_var, filterd_data_repo)
+        for mae, mape, rmse, model, node_id in result:
+            # print("saving the result for the node id", node_id)
+            if model:
+                results[node_id] = np.array([mae, mape, rmse])
+                model.save(f"/home/seyed/PycharmProjects/step/STEP/checkpoints/var_model/preds/predictor_node_{node_id}_mae_{mae}.pkl")
+            else:
+                subprocess.check_output(f"touch /home/seyed/PycharmProjects/step/STEP/checkpoints/var_model/preds/{node_id}_{mae}.pkl", shell=True, text=True)
+            # print("Result", result)
+    post_processsing(results)
+
+
+def analysis(csv_path):
+    df = pd.read_csv(csv_path)
+    df.hist(bins=10, column="mae",  figsize=(20, 6))
+    plt.show()
+    df_sorted = df.sort_values(by="mae")
+    ranks = df_sorted.index.tolist()
+    rank_map = {ind: ranks[ind] for ind, _ in enumerate(ranks)}
+    with open("/home/seyed/PycharmProjects/step/STEP/checkpoints/var_model/results/rank_map.json", "w") as file:
+        json.dump(rank_map, file)
+    df_sorted.plot(kind='bar', y='mae', legend=False)
+    plt.xlabel('node id')
+    plt.ylabel('MAE')
+    plt.title('Bar Chart - Sorted by MAE')
+    plt.show()
+
 
 
 def main(args):
@@ -490,7 +556,12 @@ def main(args):
     traffic_reading_df = pd.DataFrame(df["x"], pd.DatetimeIndex(df["z"].astype('datetime64[ns]'), freq="5T"))
     # eval_static(traffic_reading_df)
     # eval_historical_average(traffic_reading_df, period=7 * 24 * 12)
-    eval_var(traffic_reading_df, n_lags=12)
+    neighbours, _, rw, _ = load_adj()
+    if args.train and not args.analysis:
+        train(traffic_reading_df, len(neighbours), neighbours, n_lags=12)
+    else:
+        analysis(args.csv)
+    # eval_var(traffic_reading_df, n_lags=3, node_id=0)
 
 
 if __name__ == '__main__':
@@ -498,5 +569,12 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--traffic_reading_filename', default="data/metr-la.h5", type=str,
                         help='Path to the traffic Dataframe.')
+    parser.add_argument('--train', default=True, type=bool,
+                        help='Training')
+    parser.add_argument('--analysis', default=False, type=bool,
+                        help='Analysing')
+    parser.add_argument('--csv', default="", type=str,
+                        help='CSV result file')
+
     args = parser.parse_args()
     main(args)
