@@ -276,6 +276,22 @@ class BaseTimeSeriesForecastingRunner(BaseRunner):
             metric_item = self.metric_forward(metric_func, [prediction_rescaled, real_value_rescaled])
             self.update_epoch_meter("val_"+metric_name, metric_item.item())
 
+    def visualize(self, real_value, prediction):
+        for i in range(30):
+            plt.figure()
+            plt.title('Test prediction vs Target')
+            for k in range(4):
+                plt.subplot(2, 2, k + 1)
+                # for j in range(2):
+                #     c, d = [], []
+                #     for i in range(12):
+                #         c.append(real_value.cpu().detach().numpy()[j, i, k, 0])
+                #         d.append(prediction.cpu().detach().numpy()[j, i, k, 0])
+                plt.plot(range(1 + 0, 1+ 12), real_value[i, :, k, 0].cpu().detach().numpy(), c='b')
+                plt.plot(range(1 + 0, 1 + 12), prediction[i, :, k, 0].cpu().detach().numpy(), c='r')
+            plt.savefig(f'/home/seyed/PycharmProjects/step/STEP/plots/test_results{str(datetime.datetime.now())}.jpg')
+            plt.cla()
+
     @torch.no_grad()
     @master_only
     def test(self):
