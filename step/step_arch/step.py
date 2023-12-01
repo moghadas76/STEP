@@ -1,3 +1,5 @@
+from typing import Tuple, Any
+
 import torch
 from torch import nn
 
@@ -34,7 +36,8 @@ class STEP(nn.Module):
         for param in self.tsformer.parameters():
             param.requires_grad = False
 
-    def forward(self, history_data: torch.Tensor, long_history_data: torch.Tensor, future_data: torch.Tensor, batch_seen: int, epoch: int, **kwargs) -> torch.Tensor:
+    def forward(self, history_data: torch.Tensor, long_history_data: torch.Tensor, future_data: torch.Tensor, batch_seen: int, epoch: int, **kwargs) -> \
+            tuple[Any, Any, Any, float | int, Any]:
         """Feed forward of STEP.
 
         Args:
@@ -62,11 +65,14 @@ class STEP(nn.Module):
 
         # enhancing downstream STGNNs
         hidden_states = hidden_states[:, :, -1, :]
-        y_hat = self.backend(short_term_history, hidden_states=hidden_states, sampled_adj=sampled_adj).transpose(1, 2)
+        y_hat = self.backend(short_term_history, hidden_states=hidden_states, sampled_adj=sampled_adj)
+        y_hat = y_hat.transpose(1, 2)
 
         # graph structure loss coefficient
         if epoch is not None:
             gsl_coefficient = 1 / (int(epoch/6)+1)
         else:
             gsl_coefficient = 0
-        return y_hat.unsqueeze(-1), bernoulli_unnorm.softmax(-1)[..., 0].clone().reshape(batch_size, num_nodes, num_nodes), adj_knn, gsl_coefficient
+        return (y_hat.unsqueeze(-1),
+                bernoulli_unnorm.softmax(-1)[..., 0].clone().reshape(batch_size, num_nodes, num_nodes),
+                adj_knn, gsl_coefficient)
