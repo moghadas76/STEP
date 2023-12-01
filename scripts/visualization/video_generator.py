@@ -8,7 +8,7 @@ import cv2
 frame = cv2.imread(frames[0])
 height, width, layers = frame.shape
 fourcc = cv2.VideoWriter_fourcc(*"mp4v")  # Codec for the output video
-video = cv2.VideoWriter('./plots/video.mp4', fourcc, 10, (frame.shape[1], frame.shape[0]))
+video = cv2.VideoWriter('./plots/video.mp4', fourcc, 1, (frame.shape[1], frame.shape[0]))
 
 for j in frames:
     img = cv2.imread(j)
