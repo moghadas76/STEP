@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from torch import Tensor
 
 
 class moving_avg(nn.Module):
@@ -42,13 +43,12 @@ class Model(nn.Module):
         super(Model, self).__init__()
         self.seq_len = seq_len
         self.pred_len = pred_len
-
         # Decompsition Kernel Size
         kernel_size = 25
         self.decompsition = series_decomp(kernel_size)
         self.individual = False
         self.channels = enc_in
-
+        self.pooling = nn.AdaptiveAvgPool2d
         if self.individual:
             self.Linear_Seasonal = nn.ModuleList()
             self.Linear_Trend = nn.ModuleList()
@@ -66,20 +66,27 @@ class Model(nn.Module):
             self.Linear_Seasonal.weight = nn.Parameter((1/self.seq_len)*torch.ones([self.pred_len,self.seq_len]))
             self.Linear_Trend.weight = nn.Parameter((1/self.seq_len)*torch.ones([self.pred_len,self.seq_len]))
 
-    def forward(self, history_data, long_history_data=None, future_data=None, batch_seen=0, epoch=0):
+    def forward(self, long_history_data: torch.Tensor = None, attention: Tensor = None):
         # x: [Batch, Input length, Channel]
-        x = long_history_data[..., 0].squeeze(-1)
-        seasonal_init, trend_init = self.decompsition(x)
-        seasonal_init, trend_init = seasonal_init.permute(0,2,1), trend_init.permute(0,2,1)
-        if self.individual:
-            seasonal_output = torch.zeros([seasonal_init.size(0),seasonal_init.size(1),self.pred_len],dtype=seasonal_init.dtype).to(seasonal_init.device)
-            trend_output = torch.zeros([trend_init.size(0),trend_init.size(1),self.pred_len],dtype=trend_init.dtype).to(trend_init.device)
-            for i in range(self.channels):
-                seasonal_output[:,i,:] = self.Linear_Seasonal[i](seasonal_init[:,i,:])
-                trend_output[:,i,:] = self.Linear_Trend[i](trend_init[:,i,:])
-        else:
-            seasonal_output = self.Linear_Seasonal(seasonal_init)
-            trend_output = self.Linear_Trend(trend_init)
+        x_s = long_history_data.split(1, dim=1)
+        res = []
+        # x = long_history_data[..., 0].squeeze(-1)
+        # [Y(0), Y(1), ..., Y(206)]
+        for x in x_s:
+            x = x.transpose(1, 2).contiguous()
+            seasonal_init, trend_init = self.decompsition(x)
+            seasonal_init, trend_init = seasonal_init.permute(0,2,1), trend_init.permute(0,2,1)
+            if self.individual:
+                seasonal_output = torch.zeros([seasonal_init.size(0),seasonal_init.size(1),self.pred_len],dtype=seasonal_init.dtype).to(seasonal_init.device)
+                trend_output = torch.zeros([trend_init.size(0),trend_init.size(1),self.pred_len],dtype=trend_init.dtype).to(trend_init.device)
+                for i in range(self.channels):
+                    seasonal_output[:, i, :] = self.Linear_Seasonal[i](seasonal_init[:,i,:])
+                    trend_output[:,i,:] = self.Linear_Trend[i](trend_init[:,i,:])
+            else:
+                seasonal_output = self.Linear_Seasonal(seasonal_init)
+                trend_output = self.Linear_Trend(trend_init)
 
-        x = seasonal_output + trend_output
-        return x.permute(0, 2, 1).unsqueeze(dim=-1), 0, 0, 0  #  to [Batch, Output length, Channel]
+            x = seasonal_output + trend_output
+            res.append(x)
+        result = torch.cat(res, dim=1)
+        return result#x.permute(0, 2, 1).unsqueeze(dim=-1) #  to [Batch, Output length, Channel]
