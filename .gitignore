@@ -6,7 +6,18 @@ datasets/raw_data
 todo.md
 gpu_task.py
 cmd.sh
-
+weather_data/
+*.html
+*.pdf
+*.log
+*.png
+*.jpg
+*.jpeg
+cuda_practice/
+.idea/
+*.xz
+*.mp4
+*.zip
 # file
 *.npz
 *.npy
@@ -171,7 +182,7 @@ dmypy.json
 
 # Cython debug symbols
 cython_debug/
-
+mlruns/
 # PyCharm
 #  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
 #  be found at https://github.com/github/gitignore/blob/main/Global/JetBrains.gitignore
