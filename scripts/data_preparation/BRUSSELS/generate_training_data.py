@@ -37,9 +37,19 @@ def generate_data(args: argparse.Namespace):
     # graph_file_path = args.graph_file_path
     NODE_COUNTS = 269
     # read data
-    df = pd.read_csv("/home/seyed/PycharmProjects/dashboard/dashboard/src/dashboard/results/tmp.csv", index_col=0)
+    df = pd.read_csv("/home/seyed/PycharmProjects/dashboard/dashboard/src/dashboard/results/interpolated_sampled_brussels_2023_10_15_22:10:00_to_2023_12_18_22_50_00.csv", index_col=0)
     df = df.iloc[:, :NODE_COUNTS]
-    df.index = pd.date_range("2023-10-19 10:30:00", "2023-12-10 22:50:00", freq="5T")
+    index = pd.date_range("2023-10-15 22:10:00", "2023-12-18 22:45:00", freq="5T")
+    df.index = pd.to_datetime(df.index)
+    # df.index = index
+    if len(df) < len(index):
+        df = df.reindex(index, fill_value=np.NAN)
+        print("interpolate missing values")
+        df = df.interpolate(method='time')
+        df = df.ffill().bfill()
+        print(df.shape, df.head())
+        df.to_csv("/home/seyed/PycharmProjects/dashboard/dashboard/src/dashboard/results/interpolated_intervaleed_brussels_2023_10_15_22_10_00_to_2023_12_18_22_50_00.csv")
+
     data = np.expand_dims(df.values, axis=-1)
 
     data = data[..., target_channel]
@@ -48,8 +58,8 @@ def generate_data(args: argparse.Namespace):
     l, n, f = data.shape
     num_samples = l - (history_seq_len + future_seq_len) + 1
     # keep same number of validation and test samples with Graph WaveNet (input 12, output 12)
-    test_num_short = 6850
-    valid_num_short = 3425
+    test_num_short = int(num_samples * 0.2)
+    valid_num_short = int(num_samples * 0.1)
     train_num_short = num_samples - valid_num_short - test_num_short
     # train_num_short = round(num_samples * train_ratio)
     # valid_num_short = round(num_samples * valid_ratio)

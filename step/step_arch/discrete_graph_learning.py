@@ -52,13 +52,13 @@ class DiscreteGraphLearning(nn.Module):
         super().__init__()
 
         self.k = k          # the "k" of knn graph
-        self.num_nodes = {"METR-LA": 207, "PEMS04": 307, "PEMS03": 358, "PEMS-BAY": 325, "PEMS07": 883, "PEMS08": 170}[dataset_name]
-        self.train_length = {"METR-LA": 23990, "PEMS04": 13599, "PEMS03": 15303, "PEMS07": 16513, "PEMS-BAY": 36482, "PEMS08": 14284}[dataset_name]
+        self.num_nodes = {"METR-LA": 207, "PEMS04": 307, "PEMS03": 358, "PEMS-BAY": 325, "PEMS07": 883, "PEMS08": 170, "Brussels": 269}[dataset_name]
+        self.train_length = {"Brussels": 4827, "METR-LA": 23990, "PEMS04": 13599, "PEMS03": 15303, "PEMS07": 16513, "PEMS-BAY": 36482, "PEMS08": 14284}[dataset_name]
         self.node_feats = torch.from_numpy(load_pkl("datasets/" + dataset_name + "/data_in{0}_out{1}.pkl".format(input_seq_len, output_seq_len))["processed_data"]).float()[:self.train_length, :, 0]
-
+        
         # CNN for global feature extraction
         ## for the dimension, see https://github.com/zezhishao/STEP/issues/1#issuecomment-1191640023
-        self.dim_fc = {"METR-LA": 383552, "PEMS04": 217296, "PEMS03": 244560, "PEMS07": 263920, "PEMS-BAY": 583424, "PEMS08": 228256}[dataset_name]
+        self.dim_fc = {"Brussels": 76944, "METR-LA": 383552, "PEMS04": 217296, "PEMS03": 244560, "PEMS07": 263920, "PEMS-BAY": 583424, "PEMS08": 228256}[dataset_name]
         self.embedding_dim = 100
         ## network structure
         self.conv1 = torch.nn.Conv1d(1, 8, 10, stride=1)  # .to(device)
@@ -70,7 +70,7 @@ class DiscreteGraphLearning(nn.Module):
 
         # FC for transforming the features from TSFormer
         ## for the dimension, see https://github.com/zezhishao/STEP/issues/1#issuecomment-1191640023
-        self.dim_fc_mean = {"METR-LA": 16128, "PEMS-BAY": 16128, "PEMS03": 16128 * 2, "PEMS04": 16128 * 2, "PEMS07": 16128, "PEMS08": 16128 * 2}[dataset_name]
+        self.dim_fc_mean = {"Brussels": 16128, "METR-LA": 16128, "PEMS-BAY": 16128, "PEMS03": 16128 * 2, "PEMS04": 16128 * 2, "PEMS07": 16128, "PEMS08": 16128 * 2}[dataset_name]
         self.fc_mean = nn.Linear(self.dim_fc_mean, 100)
 
         # discrete graph learning
@@ -128,6 +128,8 @@ class DiscreteGraphLearning(nn.Module):
         device = long_term_history.device
         batch_size, _, num_nodes, _ = long_term_history.shape
         # generate global feature
+        # import remote_pdb;
+        # remote_pdb.set_trace()
         global_feat = self.node_feats.to(device).transpose(1, 0).view(num_nodes, 1, -1)
         global_feat = self.bn2(F.relu(self.conv2(self.bn1(F.relu(self.conv1(global_feat))))))
         global_feat = global_feat.view(num_nodes, -1)

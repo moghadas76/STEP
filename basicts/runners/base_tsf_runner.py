@@ -5,6 +5,7 @@ import time
 
 import matplotlib.pyplot as plt
 from typing import Tuple, Union, Optional
+import mlflow
 import torch
 import numpy as np
 from easytorch.utils.dist import master_only
@@ -27,6 +28,12 @@ class BaseTimeSeriesForecastingRunner(BaseRunner):
         - Support curriculum learning.
         - Users only need to implement the `forward` function.
     """
+
+    def log_scalar(self, name, value, step):
+
+        """Log a scalar value to both MLflow and TensorBoard"""
+
+        mlflow.log_metric(name, value, step=step)
 
     def __init__(self, cfg: dict):
         super().__init__(cfg)
@@ -61,10 +68,15 @@ class BaseTimeSeriesForecastingRunner(BaseRunner):
         Args:
             cfg (dict): config
         """
-
-        super().init_training(cfg)
-        for key, _ in self.metrics.items():
-            self.register_epoch_meter("train_"+key, "train", "{:.4f}")
+        with mlflow.start_run() as run:
+            print("RUN ID: %s" % run.info.run_id)
+            self.mlflow_run_id = run.info.run_id
+            cfg.update({"run_id": run.info.run_id})
+            for key, value in cfg.items():
+                mlflow.log_param(key, value)
+            super().init_training(cfg)
+            for key, _ in self.metrics.items():
+                self.register_epoch_meter("train_"+key, "train", "{:.4f}")
 
     def init_validation(self, cfg: dict):
         """Initialize validation.
@@ -253,12 +265,15 @@ class BaseTimeSeriesForecastingRunner(BaseRunner):
             forward_return[1] = real_value_rescaled
         loss = self.metric_forward(self.loss, forward_return)
         # metrics
-        for metric_name, metric_func in self.metrics.items():
-            metric_item = self.metric_forward(metric_func, forward_return[:2])
-            self.update_epoch_meter("train_"+metric_name, metric_item.item())
+        with mlflow.start_run(run_id=self.mlflow_run_id):
+            for metric_name, metric_func in self.metrics.items():
+                metric_item = self.metric_forward(metric_func, forward_return[:2])
+                self.update_epoch_meter("train_"+metric_name, metric_item.item())
+                self.log_scalar("train_"+metric_name, metric_item.item(), step=math.ceil(epoch * len(data[0])) + iter_index)
+            self.log_scalar("train_loss", loss.item(), step=math.ceil(epoch * len(data[0])) + iter_index)
         return loss
 
-    def val_iters(self, iter_index: int, data: Union[torch.Tensor, Tuple]):
+    def val_iters(self, train_epoch, iter_index: int, data: Union[torch.Tensor, Tuple]):
         """Validation details.
 
         Args:
@@ -272,9 +287,13 @@ class BaseTimeSeriesForecastingRunner(BaseRunner):
         prediction_rescaled = SCALER_REGISTRY.get(self.scaler["func"])(forward_return[0], **self.scaler["args"])
         real_value_rescaled = SCALER_REGISTRY.get(self.scaler["func"])(forward_return[1], **self.scaler["args"])
         # metrics
-        for metric_name, metric_func in self.metrics.items():
-            metric_item = self.metric_forward(metric_func, [prediction_rescaled, real_value_rescaled])
-            self.update_epoch_meter("val_"+metric_name, metric_item.item())
+        loss = self.metric_forward(self.loss, [prediction_rescaled, real_value_rescaled, *forward_return[2:]])
+        with mlflow.start_run(run_id=self.mlflow_run_id):
+            for metric_name, metric_func in self.metrics.items():
+                metric_item = self.metric_forward(metric_func, [prediction_rescaled, real_value_rescaled])
+                self.update_epoch_meter("val_"+metric_name, metric_item.item())
+                self.log_scalar("validation_"+metric_name, metric_item.item(), step=math.ceil(train_epoch * len(data[0])) + iter_index)
+            self.log_scalar("validation_loss", loss.item(), step=math.ceil(train_epoch * len(data[0])) + iter_index)
 
     def visualize(self, real_value, prediction):
         for i in range(30):
@@ -294,13 +313,45 @@ class BaseTimeSeriesForecastingRunner(BaseRunner):
 
     @torch.no_grad()
     @master_only
-    def test(self):
+    def test_process(self, cfg: dict = None, train_epoch: int = None):
+        """The whole test process.
+
+        Args:
+            cfg (dict, optional): config
+            train_epoch (int, optional): current epoch if in training process.
+        """
+
+        # init test if not in training process
+        if train_epoch is None:
+            self.init_test(cfg)
+
+        self.on_test_start()
+
+        test_start_time = time.time()
+        self.model.eval()
+
+        # test
+        self.test(train_epoch)
+
+        test_end_time = time.time()
+        self.update_epoch_meter("test_time", test_end_time - test_start_time)
+        # print test meters
+        self.print_epoch_meters("test")
+        if train_epoch is not None:
+            # tensorboard plt meters
+            self.plt_epoch_meters("test", train_epoch // self.test_interval)
+
+        self.on_test_end()
+
+
+    @torch.no_grad()
+    @master_only
+    def test(self, epoch):
         """Evaluate the model.
 
         Args:
             train_epoch (int, optional): current epoch if in training process.
         """
-
         # test loop
         prediction = []
         real_value = []
@@ -323,6 +374,7 @@ class BaseTimeSeriesForecastingRunner(BaseRunner):
             real = real_value[:, i, :, :]
             # metrics
             metric_repr = ""
+            # print("Koonet Parast-------------:", [pred, real])
             for metric_name, metric_func in self.metrics.items():
                 metric_item = self.metric_forward(metric_func, [pred, real])
                 metric_repr += ", Test {0}: {1:.4f}".format(metric_name, metric_item.item())
@@ -330,12 +382,15 @@ class BaseTimeSeriesForecastingRunner(BaseRunner):
             log = log.format(i+1)
             self.logger.info(log)
         # test performance overall
-        for metric_name, metric_func in self.metrics.items():
-            if self.evaluate_on_gpu:
-                metric_item = self.metric_forward(metric_func, [prediction, real_value])
-            else:
-                metric_item = self.metric_forward(metric_func, [prediction.detach().cpu(), real_value.detach().cpu()])
-            self.update_epoch_meter("test_"+metric_name, metric_item.item())
+        with mlflow.start_run(run_id=self.mlflow_run_id):
+            for metric_name, metric_func in self.metrics.items():
+                if self.evaluate_on_gpu:
+                    metric_item = self.metric_forward(metric_func, [prediction, real_value])
+                else:
+                    metric_item = self.metric_forward(metric_func, [prediction.detach().cpu(), real_value.detach().cpu()])
+                self.update_epoch_meter("test_"+metric_name, metric_item.item())
+                self.log_scalar("test"+metric_name, metric_item.item(), step=epoch)
+
 
     @master_only
     def on_validating_end(self, train_epoch: Optional[int]):

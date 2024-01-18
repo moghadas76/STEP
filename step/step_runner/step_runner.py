@@ -8,29 +8,6 @@ from ..step_arch.dlinear import Model
 
 class STEPRunner(BaseTimeSeriesForecastingRunner):
 
-    def define_model(self, cfg) -> nn.Module:
-        """Build model.
-
-        Initialize model by calling ```self.define_model```,
-        Moves model to the GPU.
-
-        If DDP is initialized, initialize the DDP wrapper.
-
-        Args:
-            cfg (Dict): config
-
-        Returns:
-            model (nn.Module)
-        """
-
-        self.logger.info('Building model.')
-        model = Model(
-            cfg["MODEL"].PARAM.backend_args["out_dim"] * int(cfg["MODEL"].PARAM.tsformer_args["num_token"]),
-            cfg["MODEL"].PARAM.backend_args["out_dim"],
-            cfg["MODEL"].PARAM.backend_args["num_nodes"]
-        )
-        return model
-
     def __init__(self, cfg: dict):
         super().__init__(cfg)
         self.metrics = cfg.get("METRICS", {"MAE": masked_mae, "RMSE": masked_rmse, "MAPE": masked_mape})

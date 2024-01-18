@@ -8,63 +8,11 @@ import pandas as pd
 from statsmodels.tsa.vector_ar.var_model import VAR
 from multiprocessing import Pool
 from typing import Tuple, List, TypeVar, Dict, Optional
-from scripts.var_model.var_model import load_adj
+# from scripts.var_model.var_model import load_adj
 NODE = TypeVar("NODE")
 import numpy as np
 import matplotlib.pyplot as plt
 
-
-def masked_mse_tf(preds, labels, null_val=np.nan):
-    """
-    Accuracy with masking.
-    :param preds:
-    :param labels:
-    :param null_val:
-    :return:
-    """
-    if np.isnan(null_val):
-        mask = ~tf.is_nan(labels)
-    else:
-        mask = tf.not_equal(labels, null_val)
-    mask = tf.cast(mask, tf.float32)
-    mask /= tf.reduce_mean(mask)
-    mask = tf.where(tf.is_nan(mask), tf.zeros_like(mask), mask)
-    loss = tf.square(tf.subtract(preds, labels))
-    loss = loss * mask
-    loss = tf.where(tf.is_nan(loss), tf.zeros_like(loss), loss)
-    return tf.reduce_mean(loss)
-
-
-def masked_mae_tf(preds, labels, null_val=np.nan):
-    """
-    Accuracy with masking.
-    :param preds:
-    :param labels:
-    :param null_val:
-    :return:
-    """
-    if np.isnan(null_val):
-        mask = ~tf.is_nan(labels)
-    else:
-        mask = tf.not_equal(labels, null_val)
-    mask = tf.cast(mask, tf.float32)
-    mask /= tf.reduce_mean(mask)
-    mask = tf.where(tf.is_nan(mask), tf.zeros_like(mask), mask)
-    loss = tf.abs(tf.subtract(preds, labels))
-    loss = loss * mask
-    loss = tf.where(tf.is_nan(loss), tf.zeros_like(loss), loss)
-    return tf.reduce_mean(loss)
-
-
-def masked_rmse_tf(preds, labels, null_val=np.nan):
-    """
-    Accuracy with masking.
-    :param preds:
-    :param labels:
-    :param null_val:
-    :return:
-    """
-    return tf.sqrt(masked_mse_tf(preds=preds, labels=labels, null_val=null_val))
 
 
 def masked_rmse_np(preds, labels, null_val=np.nan):
@@ -160,7 +108,7 @@ import os
 import pickle
 import scipy.sparse as sp
 import sys
-# import tensorflow as tf
+
 
 from scipy.sparse import linalg
 
@@ -319,16 +267,6 @@ def get_logger(log_dir, name, log_filename='info.log', level=logging.INFO):
     return logger
 
 
-def get_total_trainable_parameter_size():
-    """
-    Calculates the total number of trainable parameters in the current graph.
-    :return:
-    """
-    total_parameters = 0
-    for variable in tf.trainable_variables():
-        # shape is an array of tf.Dimension
-        total_parameters += np.product([x.value for x in variable.get_shape()])
-    return total_parameters
 
 
 def load_dataset(dataset_dir, batch_size, test_batch_size=None, **kwargs):
@@ -411,16 +349,6 @@ def static_predict(df, n_forward, test_ratio=0.2):
     return y_predict, y_test
 
 
-def load_var_model(df_train, scaler, n_lags):
-    data = scaler.transform(df_train.values)
-    var_model = None
-    try:
-        var_model = VAR(data)
-    except:
-        return None, None, var_model
-    var_result = var_model.fit(n_lags, ic="fpe")
-    return var_result
-
 def var_predict(df, n_forwards=(1, 3), n_lags=3, test_ratio=0.2):
     """
     Multivariate time series forecasting using Vector Auto-Regressive Model.
@@ -430,29 +358,42 @@ def var_predict(df, n_forwards=(1, 3), n_lags=3, test_ratio=0.2):
     :param test_ratio:
     :return: [list of prediction in different horizon], dt_test
     """
-    n_sample, n_output = df.shape
-    n_test = int(round(n_sample * test_ratio))
-    n_train = n_sample - n_test
-    df_train, df_test = df[:n_train], df[n_train:]
-    scaler = StandardScaler(mean=df_train.values.mean(), std=df_train.values.std())
-    var_result = load_var_model(scaler, df_train, n_lags)
-    max_n_forwards = np.max(n_forwards)
-    # n_forwards : [1, 3, 6, 12]
-    # Do forecasting.
-    result = np.zeros(shape=(len(n_forwards), n_test, n_output))
-    start = n_train - n_lags - max_n_forwards + 1
-    for input_ind in range(start, n_sample - n_lags):
-        print(input_ind)
-        prediction = var_result.forecast(scaler.transform(df.values[input_ind: input_ind + n_lags]), max_n_forwards)
-        for i, n_forward in enumerate(n_forwards):
-            result_ind = input_ind - n_train + n_lags + n_forward - 1
-            if 0 <= result_ind < n_test:
-                result[i, result_ind, :] = prediction[n_forward - 1, :]
+    for i in range(270, 300):
+        try:
+            print(i, "Geweldig") 
+            df = df.iloc[:, :i]
+            n_sample, n_output = df.shape
+            n_test = int(round(n_sample * test_ratio))
+            n_train = n_sample - n_test
+            df_train, df_test = df[:n_train], df[n_train:]
+            scaler = StandardScaler(mean=df_train.values.mean(), std=df_train.values.std())
+            data = scaler.transform(df_train.values)
+            # breakpoint()
+            var_model = None
+            try:
+                var_model = VAR(data)
+            except:
+                return None, None, var_model
+            var_result = var_model.fit(n_lags, ic="fpe")
+            max_n_forwards = np.max(n_forwards)
+            # n_forwards : [1, 3, 6, 12]
+            # Do forecasting.
+            result = np.zeros(shape=(len(n_forwards), n_test, n_output))
+            start = n_train - n_lags - max_n_forwards + 1
+            for input_ind in range(start, n_sample - n_lags):
+                prediction = var_result.forecast(scaler.transform(df.values[input_ind: input_ind + n_lags]), max_n_forwards)
+                for i, n_forward in enumerate(n_forwards):
+                    result_ind = input_ind - n_train + n_lags + n_forward - 1
+                    if 0 <= result_ind < n_test:
+                        result[i, result_ind, :] = prediction[n_forward - 1, :]
 
-    df_predicts = []
-    for i, n_forward in enumerate(n_forwards):
-        df_predict = pd.DataFrame(scaler.inverse_transform(result[i]), index=df_test.index, columns=df_test.columns)
-        df_predicts.append(df_predict)
+            df_predicts = []
+            for i, n_forward in enumerate(n_forwards):
+                df_predict = pd.DataFrame(scaler.inverse_transform(result[i]), index=df_test.index, columns=df_test.columns)
+                df_predicts.append(df_predict)
+        except Exception as e:
+            print(e, i, "$@#$$#%#$%#$@@")
+            break
     return df_predicts, df_test, var_result
 
 
@@ -483,18 +424,19 @@ def eval_historical_average(traffic_reading_df, period):
 
 def eval_var(traffic_reading_df, n_lags=3, node_id=0):
     n_forwards = [1, 3, 6, 12]
-    y_predicts, y_test, model = var_predict(traffic_reading_df, n_forwards=n_forwards, n_lags=3,
+    y_predicts, y_test, model = var_predict(traffic_reading_df, n_forwards=n_forwards, n_lags=n_lags,
                                      test_ratio=0.2)
     if not y_predicts:
         return -1, -1, -1, None, node_id
-    logger.info('VAR (lag=%d)' % n_lags)
-    logger.info('Node ID\tModel\tHorizon\tRMSE\tMAPE\tMAE')
+    print('VAR (lag=%d)' % n_lags)
+    print('Node ID\tModel\tHorizon\tRMSE\tMAPE\tMAE')
     for i, horizon in enumerate(n_forwards):
+        # breakpoint()
         rmse = masked_rmse_np(preds=y_predicts[i].values, labels=y_test.values, null_val=0)
         mape = masked_mape_np(preds=y_predicts[i].values, labels=y_test.values, null_val=0)
         mae = masked_mae_np(preds=y_predicts[i].values, labels=y_test.values, null_val=0)
         line = 'Node\t%d VAR\t%d\t%.2f\t%.2f\t%.2f\n' % (node_id, horizon, rmse, mape * 100, mae)
-        logger.info(line)
+        print(line)
     return mae, mape, rmse, model, node_id
 
 def post_processsing(result):
@@ -515,34 +457,27 @@ def train(data: pd.DataFrame, node_count: int,
         return ls
 
     node_ids = list(range(node_count))
-    # for node_id in node_ids:
-    #     data_repo.append((
-    #         data[list(map(int, neighbours[node_id]["1_hop"]["nodes"]))],
-    #         # data[second_extractor(node_id)],
-    #         n_lags,
-    #         node_id
-    #     ))
-    data_repo = (
-        data,
-        # data[second_extractor(node_id)],
-        n_lags,
-        0
-    )
-    # filterd_data_repo = [data_repo[i] for i in [47, 148, 127, 56, 137]]
+    data_repo = []
+    for node_id in node_ids:
+        data_repo.append((
+            # data[list(map(int, neighbours[node_id]["1_hop"]["nodes"]))],
+            data[second_extractor(node_id)],
+            n_lags,
+            node_id
+        ))
+    filterd_data_repo = [data_repo[i] for i in [47, 148, 127, 56, 137]]
     results = np.zeros((node_count, 3))
-    # with Pool() as pool:
-    #     result = pool.starmap(eval_var, filterd_data_repo)
-    #     for mae, mape, rmse, model, node_id in result:
-    #         # print("saving the result for the node id", node_id)
-    #         if model:
-    #             results[node_id] = np.array([mae, mape, rmse])
-    #             model.save(f"/home/seyed/PycharmProjects/step/STEP/checkpoints/var_model/preds/predictor_node_{node_id}_mae_{mae}.pkl")
-    #         else:
-    #             subprocess.check_output(f"touch /home/seyed/PycharmProjects/step/STEP/checkpoints/var_model/preds/{node_id}_{mae}.pkl", shell=True, text=True)
-    #         # print("Result", result)
-    results = eval_var(*data_repo)
-    print("Result", results)
-    # post_processsing(results)
+    with Pool() as pool:
+        result = pool.starmap(eval_var, filterd_data_repo)
+        for mae, mape, rmse, model, node_id in result:
+            # print("saving the result for the node id", node_id)
+            if model:
+                results[node_id] = np.array([mae, mape, rmse])
+                model.save(f"/home/seyed/PycharmProjects/step/STEP/checkpoints/var_model/preds/predictor_node_{node_id}_mae_{mae}.pkl")
+            else:
+                subprocess.check_output(f"touch /home/seyed/PycharmProjects/step/STEP/checkpoints/var_model/preds/{node_id}_{mae}.pkl", shell=True, text=True)
+            # print("Result", result)
+    post_processsing(results)
 
 
 def analysis(csv_path):
@@ -560,32 +495,18 @@ def analysis(csv_path):
     plt.title('Bar Chart - Sorted by MAE')
     plt.show()
 
-
-
-def main(args):
-    df = np.load("/home/seyed/PycharmProjects/step/STEP/datasets/raw_data/METR-LA/metr.npz")
-    traffic_reading_df = pd.DataFrame(df["x"], pd.DatetimeIndex(df["z"].astype('datetime64[ns]'), freq="5T"))
-    # eval_static(traffic_reading_df)
-    # eval_historical_average(traffic_reading_df, period=7 * 24 * 12)
-    neighbours, _, rw, _ = load_adj()
-    if args.train and not args.analysis:
-        train(traffic_reading_df, len(neighbours), neighbours, n_lags=12)
+node_count = 300
+df = pd.read_csv("/home/seyed/PycharmProjects/dashboard/dashboard/src/dashboard/results/tmp.csv", index_col=0)
+# df.drop(columns=["Unnamed: 0"], inplace=True)
+# breakpoint()
+filterd_data_repo = (df, 12, 0,)
+result = [eval_var(*filterd_data_repo)]
+results = np.zeros((node_count, 3))
+for item in result:
+    # print("saving the result for the node id", node_id)
+    mae, mape, rmse, model, node_id = item[0], item[1], item[2], item[3], item[4]
+    if model:
+        results[node_id] = np.array([mae, mape, rmse])
+        model.save(f"/home/seyed/PycharmProjects/dashboard/dashboard/src/dashboard/results/predictor_node_{node_id}_mae_{mae}.pkl")
     else:
-        analysis(args.csv)
-    # eval_var(traffic_reading_df, n_lags=3, node_id=0)
-
-
-if __name__ == '__main__':
-    logger = get_logger('data/model', 'Baseline')
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--traffic_reading_filename', default="data/metr-la.h5", type=str,
-                        help='Path to the traffic Dataframe.')
-    parser.add_argument('--train', default=True, type=bool,
-                        help='Training')
-    parser.add_argument('--analysis', default=False, type=bool,
-                        help='Analysing')
-    parser.add_argument('--csv', default="", type=str,
-                        help='CSV result file')
-
-    args = parser.parse_args()
-    main(args)
+        subprocess.check_output(f"touch /home/seyed/PycharmProjects/dashboard/dashboard/src/dashboard/results/{node_id}_{mae}.pkl", shell=True, text=True)

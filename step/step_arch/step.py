@@ -3,7 +3,7 @@ from typing import Tuple, Any
 import torch
 from torch import nn
 
-from .tsformer import TSFormer
+from .tsformer import TSFormer, TSFormerSpatialTemporalMasking
 from .graphwavenet import GraphWaveNet
 from .discrete_graph_learning import DiscreteGraphLearning
 
@@ -17,7 +17,8 @@ class STEP(nn.Module):
         self.pre_trained_tsformer_path = pre_trained_tsformer_path
 
         # iniitalize the tsformer and backend models
-        self.tsformer = TSFormer(**tsformer_args)
+        # self.tsformer = TSFormer(**tsformer_args)
+        self.tsformer = TSFormerSpatialTemporalMasking(**tsformer_args)
         self.backend = GraphWaveNet(**backend_args)
 
         # load pre-trained tsformer

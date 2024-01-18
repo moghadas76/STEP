@@ -234,11 +234,6 @@ class GraphWaveNet(nn.Module):
 
         self.end_conv_1 = nn.Conv2d(in_channels=skip_channels, out_channels=end_channels, kernel_size=(1,1), bias=True)
         self.end_conv_2 = nn.Conv2d(in_channels=end_channels, out_channels=out_dim, kernel_size=(1,1), bias=True)
-        self.dlinear = DLinear(
-            out_dim,
-            out_dim,
-            num_nodes
-        )
         self.receptive_field = receptive_field
 
     def _calculate_random_walk_matrix(self, adj_mx):
@@ -344,6 +339,7 @@ class GraphWaveNet(nn.Module):
 
         # reshape output: [B, P, N, 1] -> [B, N, P]
         x = x.squeeze(-1).transpose(1, 2)
+        return x
         tmp = x.clone()
         x = self.dlinear(x)
         # x = self._prepare_attentional_mechanism_input(x, self.gconv[7].nconv.latest_attention)

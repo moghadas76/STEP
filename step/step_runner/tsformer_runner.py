@@ -72,7 +72,7 @@ class TSFormerRunner(BaseTimeSeriesForecastingRunner):
 
     @torch.no_grad()
     @master_only
-    def test(self):
+    def test(self, train_epoch):
         """Evaluate the model.
 
         Args:
