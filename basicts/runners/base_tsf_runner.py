@@ -130,6 +130,7 @@ class BaseTimeSeriesForecastingRunner(BaseRunner):
         batch_size = cfg["TRAIN"]["DATA"]["BATCH_SIZE"]
         self.iter_per_epoch = math.ceil(len(dataset) / batch_size)
 
+
         return dataset
 
     @staticmethod
@@ -249,7 +250,6 @@ class BaseTimeSeriesForecastingRunner(BaseRunner):
         Returns:
             loss (torch.Tensor)
         """
-
         iter_num = (epoch-1) * self.iter_per_epoch + iter_index
         forward_return = list(self.forward(data=data, epoch=epoch, iter_num=iter_num, train=True))
         # re-scale data
@@ -328,7 +328,7 @@ class BaseTimeSeriesForecastingRunner(BaseRunner):
         self.on_test_start()
 
         test_start_time = time.time()
-        self.model.eval()
+        [model.eval() for model in self.models]
 
         # test
         self.test(train_epoch)
@@ -355,7 +355,7 @@ class BaseTimeSeriesForecastingRunner(BaseRunner):
         # test loop
         prediction = []
         real_value = []
-        for _, data in enumerate(self.test_data_loader):
+        for _, data in enumerate(zip(*self.test_data_loader)):
             forward_return = self.forward(data, epoch=None, iter_num=None, train=False)
             prediction.append(forward_return[0])        # preds = forward_return[0]
             real_value.append(forward_return[1])        # testy = forward_return[1]

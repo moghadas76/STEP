@@ -2,10 +2,10 @@ import torch
 from torch import nn
 from timm.models.vision_transformer import trunc_normal_
 
-from .patch import PatchEmbedding
+from ..mask.patch import PatchEmbedding
 from .mask import MaskGenerator, KNNMaskGenerator
-from .positional_encoding import PositionalEncoding, SpatialPositionalEncoding
-from .transformer_layers import TransformerLayers
+from ..mask.positional_encoding import PositionalEncoding, SpatialPositionalEncoding
+from ..mask.transformer_layers import TransformerLayers
 
 
 def unshuffle(shuffled_tokens):

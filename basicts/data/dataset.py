@@ -18,6 +18,7 @@ class TimeSeriesForecastingDataset(Dataset):
         processed_data = data["processed_data"]
         self.data = torch.from_numpy(processed_data).float()
         # read index
+        print("Loading index file...", self.data.shape, data_file_path)
         self.index = load_pkl(index_file_path)[mode]
 
     def _check_if_file_exists(self, data_file_path: str, index_file_path: str):

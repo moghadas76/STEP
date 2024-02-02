@@ -168,7 +168,7 @@ class BaseRunner(Runner):
         self.on_test_start()
 
         test_start_time = time.time()
-        self.model.eval()
+        [model.eval() for model in self.models]
 
         # test
         self.test()

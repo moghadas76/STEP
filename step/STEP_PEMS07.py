@@ -9,7 +9,7 @@ from basicts.utils.serialization import load_adj
 
 from .step_arch import STEP
 from .step_runner import STEPRunner
-from .step_loss import step_loss
+from .step_loss import step_loss_tiny
 from .step_data import ForecastingDataset
 
 
@@ -84,7 +84,7 @@ CFG.MODEL.DDP_FIND_UNUSED_PARAMETERS = True
 
 # ================= optim ================= #
 CFG.TRAIN = EasyDict()
-CFG.TRAIN.LOSS = step_loss
+CFG.TRAIN.LOSS = step_loss_tiny
 CFG.TRAIN.OPTIM = EasyDict()
 CFG.TRAIN.OPTIM.TYPE = "Adam"
 CFG.TRAIN.OPTIM.PARAM= {

@@ -1,5 +1,4 @@
-from .step import STEP
-from .tsformer import TSFormer
-from .tsformer import TSFormerSpatialTemporalMasking
+from .step import STDMAE
+from .mask import Mask
 
-__all__ = ["TSFormer", "STEP", "TSFormerSpatialTemporalMasking"]
+__all__ = ["Mask", "STDMAE"]

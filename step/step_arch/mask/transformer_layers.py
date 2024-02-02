@@ -13,6 +13,7 @@ class TransformerLayers(nn.Module):
     def forward(self, src):
         B, N, L, D = src.shape
         src = src * math.sqrt(self.d_model)
+        src=src.contiguous()
         src = src.view(B*N, L, D)
         src = src.transpose(0, 1)
         output = self.transformer_encoder(src, mask=None)

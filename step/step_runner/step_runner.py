@@ -1,10 +1,11 @@
+from typing import Dict
 import torch
 import torch.nn as nn
 
 from basicts.runners import BaseTimeSeriesForecastingRunner
 from basicts.metrics import masked_mae, masked_rmse, masked_mape
 from ..step_arch.dlinear import Model
-
+from torch.utils.checkpoint import checkpoint
 
 class STEPRunner(BaseTimeSeriesForecastingRunner):
 
@@ -13,6 +14,12 @@ class STEPRunner(BaseTimeSeriesForecastingRunner):
         self.metrics = cfg.get("METRICS", {"MAE": masked_mae, "RMSE": masked_rmse, "MAPE": masked_mape})
         self.forward_features = cfg["MODEL"].get("FORWARD_FEATURES", None)
         self.target_features = cfg["MODEL"].get("TARGET_FEATURES", None)
+
+    @staticmethod
+    def define_model(cfg: Dict) -> nn.Module:
+        
+        return cfg["MODEL"]["ARCH"](**cfg.MODEL.PARAM)
+
 
     def select_input_features(self, data: torch.Tensor) -> torch.Tensor:
         """Select input features and reshape data to fit the target model.
@@ -66,7 +73,7 @@ class STEPRunner(BaseTimeSeriesForecastingRunner):
         long_history_data = self.select_input_features(long_history_data)
 
         # feed forward
-        prediction, pred_adj, prior_adj, gsl_coefficient = self.model(history_data=history_data, long_history_data=long_history_data, future_data=None, batch_seen=iter_num, epoch=epoch)
+        prediction = self.model(history_data=history_data, long_history_data=long_history_data, future_data=None, batch_seen=iter_num, epoch=epoch)
 
         batch_size, length, num_nodes, _ = future_data.shape
         assert list(prediction.shape)[:3] == [batch_size, length, num_nodes], \
@@ -75,7 +82,7 @@ class STEPRunner(BaseTimeSeriesForecastingRunner):
         # post process
         prediction = self.select_target_features(prediction)
         real_value = self.select_target_features(future_data)
-        return prediction, real_value, pred_adj, prior_adj, gsl_coefficient
+        return prediction, real_value, None, None
 
     def tensorboard_tracking(self):
         from torch.utils.tensorboard import SummaryWriter

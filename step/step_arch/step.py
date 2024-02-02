@@ -1,79 +1,67 @@
-from typing import Tuple, Any
-
 import torch
 from torch import nn
 
-from .tsformer import TSFormer, TSFormerSpatialTemporalMasking
+from .mask import Mask
 from .graphwavenet import GraphWaveNet
-from .discrete_graph_learning import DiscreteGraphLearning
 
 
-class STEP(nn.Module):
-    """Pre-training Enhanced Spatial-temporal Graph Neural Network for Multivariate Time Series Forecasting"""
+class STDMAE(nn.Module):
+    """Spatio-Temporal-Decoupled Masked Pre-training for Traffic Forecasting"""
 
-    def __init__(self, dataset_name, pre_trained_tsformer_path, tsformer_args, backend_args, dgl_args):
+    def __init__(self, dataset_name, pre_trained_tmae_path,pre_trained_smae_path, mask_args, backend_args):
         super().__init__()
         self.dataset_name = dataset_name
-        self.pre_trained_tsformer_path = pre_trained_tsformer_path
+        self.pre_trained_tmae_path = pre_trained_tmae_path
+        self.pre_trained_smae_path = pre_trained_smae_path
+        # iniitalize 
+        self.tmae = Mask(**mask_args)
+        self.smae = Mask(**mask_args)
 
-        # iniitalize the tsformer and backend models
-        # self.tsformer = TSFormer(**tsformer_args)
-        self.tsformer = TSFormerSpatialTemporalMasking(**tsformer_args)
         self.backend = GraphWaveNet(**backend_args)
 
-        # load pre-trained tsformer
+        # load pre-trained model
         self.load_pre_trained_model()
 
-        # discrete graph learning
-        self.discrete_graph_learning = DiscreteGraphLearning(**dgl_args)
 
     def load_pre_trained_model(self):
         """Load pre-trained model"""
 
         # load parameters
-        checkpoint_dict = torch.load(self.pre_trained_tsformer_path)
-        self.tsformer.load_state_dict(checkpoint_dict["model_state_dict"])
+        checkpoint_dict = torch.load(self.pre_trained_tmae_path)
+        self.tmae.load_state_dict(checkpoint_dict["model_state_dict"])
+        
+        checkpoint_dict = torch.load(self.pre_trained_smae_path)
+        self.smae.load_state_dict(checkpoint_dict["model_state_dict"])
+        
         # freeze parameters
-        for param in self.tsformer.parameters():
+        for param in self.tmae.parameters():
             param.requires_grad = False
-
-    def forward(self, history_data: torch.Tensor, long_history_data: torch.Tensor, future_data: torch.Tensor, batch_seen: int, epoch: int, **kwargs) -> \
-            tuple[Any, Any, Any, float | int, Any]:
-        """Feed forward of STEP.
+        for param in self.smae.parameters():
+            param.requires_grad = False
+    def forward(self, history_data: torch.Tensor, long_history_data: torch.Tensor, future_data: torch.Tensor, batch_seen: int, epoch: int, **kwargs) -> torch.Tensor:
+        """Feed forward of STDMAE.
 
         Args:
             history_data (torch.Tensor): Short-term historical data. shape: [B, L, N, 3]
             long_history_data (torch.Tensor): Long-term historical data. shape: [B, L * P, N, 3]
-            future_data (torch.Tensor): future data
-            batch_seen (int): number of batches that have been seen
-            epoch (int): number of epochs
 
         Returns:
             torch.Tensor: prediction with shape [B, N, L].
-            torch.Tensor: the Bernoulli distribution parameters with shape [B, N, N].
-            torch.Tensor: the kNN graph with shape [B, N, N], which is used to guide the training of the dependency graph.
         """
 
         # reshape
         short_term_history = history_data     # [B, L, N, 1]
-        long_term_history = long_history_data
 
-        # STEP
-        batch_size, _, num_nodes, _ = short_term_history.shape
+        batch_size, _, num_nodes, _ = history_data.shape
 
-        # discrete graph learning & feed forward of TSFormer
-        bernoulli_unnorm, hidden_states, adj_knn, sampled_adj = self.discrete_graph_learning(long_term_history, self.tsformer)
+        hidden_states_t = self.tmae(long_history_data[..., [0]])
+        hidden_states_s = self.smae(long_history_data[..., [0]])
+        hidden_states=torch.cat((hidden_states_t,hidden_states_s),-1)
+        
+        # enhance
+        out_len=1
+        hidden_states = hidden_states[:, :, -out_len, :]
+        y_hat = self.backend(short_term_history, hidden_states=hidden_states).transpose(1, 2).unsqueeze(-1)
 
-        # enhancing downstream STGNNs
-        hidden_states = hidden_states[:, :, -1, :]
-        y_hat = self.backend(short_term_history, hidden_states=hidden_states, sampled_adj=sampled_adj)
-        y_hat = y_hat.transpose(1, 2)
+        return y_hat
 
-        # graph structure loss coefficient
-        if epoch is not None:
-            gsl_coefficient = 1 / (int(epoch/6)+1)
-        else:
-            gsl_coefficient = 0
-        return (y_hat.unsqueeze(-1),
-                bernoulli_unnorm.softmax(-1)[..., 0].clone().reshape(batch_size, num_nodes, num_nodes),
-                adj_knn, gsl_coefficient)

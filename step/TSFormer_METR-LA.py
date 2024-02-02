@@ -5,8 +5,10 @@ import sys
 sys.path.append(os.path.abspath(__file__ + "/../../.."))
 from easydict import EasyDict
 from basicts.losses import masked_mae
+from basicts.metrics.mae import contrastive_masked_mae
+# from step.step_loss.info import contrastive_masked_mae  
 
-from .step_arch import TSFormer
+from .step_arch import Mask
 from .step_runner import TSFormerRunner
 from .step_data import PretrainingDataset
 
@@ -22,7 +24,6 @@ CFG.DATASET_TYPE = "Traffic speed"
 CFG.DATASET_INPUT_LEN = 288 * 7
 CFG.DATASET_OUTPUT_LEN = 12
 CFG.GPU_NUM = 1
-
 # ================= environment ================= #
 CFG.ENV = EasyDict()
 CFG.ENV.SEED = 0
@@ -31,8 +32,8 @@ CFG.ENV.CUDNN.ENABLED = True
 
 # ================= model ================= #
 CFG.MODEL = EasyDict()
-CFG.MODEL.NAME = "TSFormer"
-CFG.MODEL.ARCH = TSFormer
+CFG.MODEL.NAME = "Mask"
+CFG.MODEL.ARCH = Mask
 CFG.MODEL.PARAM = {
     "patch_size":12,
     "in_channel":1,
@@ -40,10 +41,11 @@ CFG.MODEL.PARAM = {
     "num_heads":4,
     "mlp_ratio":4,
     "dropout":0.1,
-    "num_token":288 * 7 / 12,
-    "mask_ratio":0.75,
+    # "num_token":288 * 7 / 12,
+    "mask_ratio":0.25,
     "encoder_depth":4,
     "decoder_depth":1,
+    "spatial":True,
     "mode":"pre-train"
 }
 CFG.MODEL.FORWARD_FEATURES = [0]
@@ -51,7 +53,7 @@ CFG.MODEL.TARGET_FEATURES = [0]
 
 # ================= optim ================= #
 CFG.TRAIN = EasyDict()
-CFG.TRAIN.LOSS = masked_mae
+CFG.TRAIN.LOSS = contrastive_masked_mae
 CFG.TRAIN.OPTIM = EasyDict()
 CFG.TRAIN.OPTIM.TYPE = "Adam"
 CFG.TRAIN.OPTIM.PARAM= {
@@ -71,7 +73,7 @@ CFG.TRAIN.LR_SCHEDULER.PARAM= {
 CFG.TRAIN.CLIP_GRAD_PARAM = {
     "max_norm": 5.0
 }
-CFG.TRAIN.NUM_EPOCHS = 100
+CFG.TRAIN.NUM_EPOCHS = 200
 CFG.TRAIN.CKPT_SAVE_DIR = os.path.join(
     "checkpoints",
     "_".join([CFG.MODEL.NAME, str(CFG.TRAIN.NUM_EPOCHS)])
