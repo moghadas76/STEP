@@ -1,8 +1,9 @@
+import datetime
 from typing import Dict, Union
 
 import easytorch
 
-def launch_training(cfg: Union[Dict, str], gpus: str = None, node_rank: int = 0):
+def launch_training(cfg: Union[Dict, str], gpus: str = None, node_rank: int = 0, inference: bool = False, date_inference: datetime = None):
     """Extended easytorch launch_training.
 
     Args:
@@ -14,10 +15,9 @@ def launch_training(cfg: Union[Dict, str], gpus: str = None, node_rank: int = 0)
     # pre-processing of some possible future features, such as:
     # registering model, runners.
     # config checking
-    pass
     # launch training based on easytorch
     try:
-        easytorch.launch_training(cfg=cfg, devices=gpus, node_rank=node_rank)
+        return easytorch.launch_training(cfg=cfg, devices=gpus, node_rank=node_rank, inference=inference, date_inference=date_inference or datetime.datetime(2024, 6, 11, 0, 35))
     except TypeError as e:
         if "launch_training() got an unexpected keyword argument" in repr(e):
             # NOTE: for earlier easytorch version

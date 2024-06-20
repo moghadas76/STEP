@@ -1,9 +1,13 @@
 # Discrete Graph Learning
+import importlib
 import torch
 import numpy as np
 from torch import nn
 import torch.nn.functional as F
-from basicts.utils import load_pkl
+try:
+    from basicts.utils import load_pkl
+except:
+    from STEP.basicts.utils import load_pkl
 
 from .similarity import batch_cosine_similarity, batch_dot_similarity
 
@@ -54,7 +58,13 @@ class DiscreteGraphLearning(nn.Module):
         self.k = k          # the "k" of knn graph
         self.num_nodes = {"METR-LA": 207, "PEMS04": 307, "PEMS03": 358, "PEMS-BAY": 325, "PEMS07": 883, "PEMS08": 170, "Brussels": 269}[dataset_name]
         self.train_length = {"Brussels": 4827, "METR-LA": 23990, "PEMS04": 13599, "PEMS03": 15303, "PEMS07": 16513, "PEMS-BAY": 36482, "PEMS08": 14284}[dataset_name]
-        self.node_feats = torch.from_numpy(load_pkl("datasets/" + dataset_name + "/data_in{0}_out{1}.pkl".format(input_seq_len, output_seq_len))["processed_data"]).float()[:self.train_length, :, 0]
+        prefix = "datasets/"
+        try:
+            importlib.import_module('basicts')
+            print("basicts is imported")
+        except:
+            prefix = "../datasets/"
+        self.node_feats = torch.from_numpy(load_pkl(prefix + dataset_name + "/data_in{0}_out{1}.pkl".format(input_seq_len, output_seq_len))["processed_data"]).float()[:self.train_length, :, 0]
         
         # CNN for global feature extraction
         ## for the dimension, see https://github.com/zezhishao/STEP/issues/1#issuecomment-1191640023

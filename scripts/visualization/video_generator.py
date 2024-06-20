@@ -1,14 +1,27 @@
+import cv2
 import subprocess
+import sys
+from datetime import datetime
 
-output = subprocess.check_output("ls -hatr ./plots/*.jpg", shell=True)
+output = subprocess.check_output(f"ls -hatr {sys.argv[1]}/*.{sys.argv[2]}", shell=True)
 frames = output.decode().split("\n")[:-1]
 
-import cv2
+W = None
+try:
+    W = int(sys.argv[3])
+except ValueError:
+    W = frames.shape[1]
+
+H = None
+try:
+    H = int(sys.argv[4])
+except ValueError:
+    H = frames.shape[0]
 
 frame = cv2.imread(frames[0])
 height, width, layers = frame.shape
 fourcc = cv2.VideoWriter_fourcc(*"mp4v")  # Codec for the output video
-video = cv2.VideoWriter('./plots/video.mp4', fourcc, 1, (frame.shape[1], frame.shape[0]))
+video = cv2.VideoWriter(f'{sys.argv[1]}/video_{datetime.now().timestamp()}.mp4', fourcc, 45, (W, H))
 
 for j in frames:
     img = cv2.imread(j)

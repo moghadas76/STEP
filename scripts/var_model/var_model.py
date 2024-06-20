@@ -1,5 +1,5 @@
 import copy
-import random
+import json
 import more_itertools as mit
 import numpy as np
 import pandas as pd
@@ -7,6 +7,7 @@ import subprocess
 import matplotlib.pyplot as plt
 import os
 import sys
+import pickle
 import matplotlib.pyplot as plt
 import networkx as nx
 from statsmodels.tsa.api import VAR
@@ -21,7 +22,7 @@ from scripts.var_model.util import RandomWalkUti
 
 NODE = TypeVar("NODE")
 
-sys.path.append(os.path.abspath(__file__ + "/../../../.."))
+sys.path.append(os.path.abspath(__file__ + "/../.."))
 from basicts.data.transform import re_standard_transform
 
 
@@ -190,7 +191,8 @@ def load_dataset(output_dir="/home/seyed/PycharmProjects/step/STEP/datasets/raw_
 
 def load_adj(show=False):
     G, net = RandomWalkUti.load_random_walk(
-        "/home/seyed/PycharmProjects/step/STEP/datasets/raw_data/METR-LA/adj_METR-LA.pkl")
+        "/home/seyed/Downloads/adj_mx(1).pkl", "transition")
+    print(net[26])
     orig_g = copy.deepcopy(G)
     if show:
         pos = nx.spring_layout(net)
@@ -198,6 +200,8 @@ def load_adj(show=False):
         plt.show()
     node_nns = {}
     for node in range(207):
+        if node == 26:
+            print(list(G.neighbors(node)))
         node_nns[node] = {}
         node_nns[node]["1_hop"] = {}
         sub = G.subgraph(list(G.neighbors(node)))
@@ -207,6 +211,8 @@ def load_adj(show=False):
 
 
 if __name__ == '__main__':
-    node_nns, _, _ = load_adj()
-    data_train, data_valid, data_test = load_dataset()
-    train(data_train, data_valid, data_test, len(node_nns), node_nns)
+    node_nns, G, _,_ = load_adj()
+    with open("/home/seyed/PycharmProjects/step/STEP/datasets/raw_data/METR-LA/adj_METR-LA_nn.json", "w") as f:
+        json.dump(node_nns, f)
+    # data_train, data_valid, data_test = load_dataset()
+    # train(data_train, data_valid, data_test, len(node_nns), node_nns)

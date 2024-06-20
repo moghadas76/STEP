@@ -1,4 +1,6 @@
+from collections import defaultdict
 import datetime
+import importlib
 import math
 import functools
 import time
@@ -44,8 +46,15 @@ class BaseTimeSeriesForecastingRunner(BaseRunner):
         self.dataset_type = cfg["DATASET_TYPE"]
         self.evaluate_on_gpu = cfg["TEST"].get("USE_GPU", True)     # evaluate on gpu or cpu (gpu is faster but may cause OOM)
 
+        prefix = cfg["TRAIN"]["DATA"]["DIR"]
+        try:
+            importlib.import_module('basicts')
+            print("basicts is imported")
+        except:
+            prefix = f'../{cfg["TRAIN"]["DATA"]["DIR"]}/'
+
         # read scaler for re-normalization
-        self.scaler = load_pkl("{0}/scaler_in{1}_out{2}.pkl".format(cfg["TRAIN"]["DATA"]["DIR"], cfg["DATASET_INPUT_LEN"], cfg["DATASET_OUTPUT_LEN"]))
+        self.scaler = load_pkl("{0}/scaler_in{1}_out{2}.pkl".format(prefix, cfg["DATASET_INPUT_LEN"], cfg["DATASET_OUTPUT_LEN"]))
         # define loss
         self.loss = cfg["TRAIN"]["LOSS"]
         # define metric
@@ -391,6 +400,46 @@ class BaseTimeSeriesForecastingRunner(BaseRunner):
                 metric_item = self.metric_forward(metric_func, [prediction.detach().cpu(), real_value.detach().cpu()])
             self.update_epoch_meter("test_"+metric_name, metric_item.item())
             self.log_scalar("test"+metric_name, metric_item.item(), step=epoch)
+
+
+    @torch.no_grad()
+    @master_only
+    def test_inference(self, cfg, indicies: list):
+        """Evaluate the model.
+
+        Args:
+            train_epoch (int, optional): current epoch if in training process.
+        """
+        self.init_test(cfg)
+        self.model.eval()
+        # test loop
+        prediction = []
+        real_value = []
+        data = self.dataset[indicies]
+        data = [torch.tensor(d).unsqueeze(0) for d in data]
+        forward_return = self.forward(data, epoch=None, iter_num=None, train=False)
+        prediction.append(forward_return[0])        # preds = forward_return[0]
+        real_value.append(forward_return[1])        # testy = forward_return[1]
+        prediction = torch.cat(prediction, dim=0)
+        real_value = torch.cat(real_value, dim=0)
+        # re-scale data
+        prediction = SCALER_REGISTRY.get(self.scaler["func"])(
+            prediction, **self.scaler["args"])
+        real_value = SCALER_REGISTRY.get(self.scaler["func"])(
+            real_value, **self.scaler["args"])
+        # summarize the results.
+        # test performance of different horizon
+        metrics = defaultdict(lambda: defaultdict(list))
+        for i in self.evaluation_horizons:
+            # For horizon i, only calculate the metrics **at that time** slice here.
+            pred = prediction[:, i, :, :]
+            real = real_value[:, i, :, :]
+            # metrics
+            # print("Koonet Parast-------------:", [pred, real])
+            for metric_name, metric_func in self.metrics.items():
+                metric_item = self.metric_forward(metric_func, [pred, real])
+                metrics[i][metric_name].append(metric_item.item())
+        return prediction, real_value, metrics
 
 
     @master_only

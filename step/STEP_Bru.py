@@ -6,7 +6,10 @@ import sys
 sys.path.append(os.path.abspath(__file__ + "/../../.."))
 import torch
 from easydict import EasyDict
-from basicts.utils.serialization import load_adj
+try:
+    from basicts.utils.serialization import load_adj
+except:
+    from STEP.basicts.utils.serialization import load_adj
 
 from .step_arch import STEP
 from .step_runner import STEPRunner
@@ -90,7 +93,7 @@ CFG.MODEL.DDP_FIND_UNUSED_PARAMETERS = True
 # ================= optim ================= #
 CFG.TRAIN = EasyDict()
 CFG.TRAIN.LOSS = step_loss
-CFG.TRAIN.FINETUNE_FROM = "/home/seyed/PycharmProjects/step/STEP/checkpoints/STEP_100/f8cbc6b5dc005fca0774a226a394b6d2BruZero/STEP_100.pt"
+CFG.TRAIN.FINETUNE_FROM = "/home/seyed/PycharmProjects/step/STEP/checkpoints/STEP_100/f8cbc6b5dc005fca0774a226a394b6d2BruZero/STEP_110.pt"
 CFG.TRAIN.OPTIM = EasyDict()
 CFG.TRAIN.OPTIM.TYPE = "Adam"
 CFG.TRAIN.OPTIM.PARAM= {

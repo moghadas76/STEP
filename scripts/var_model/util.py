@@ -6,8 +6,9 @@ from basicts.utils.serialization import load_adj
 class RandomWalkUti:
 
     @staticmethod
-    def load_random_walk(path):
-        _, adj = load_adj(path, "scalap")
+    def load_random_walk(path, mode="scalap"):
+        _, adj = load_adj(path, mode)
+        print(adj[26])
         rw = RandomWalkUti._calculate_random_walk_matrix(torch.Tensor(adj).to("cpu"))
         network = nx.from_numpy_array(rw)
         node_labels = {i: f'Node {i}' for i in range(len(network.nodes))}

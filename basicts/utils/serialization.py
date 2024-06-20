@@ -55,6 +55,7 @@ def load_adj(file_path: str, adj_type: str):
     try:
         # METR and PEMS_BAY
         _, _, adj_mx = load_pkl(file_path)
+        print(adj_mx[26])
     except ValueError:
         # PEMS04
         adj_mx = load_pkl(file_path)

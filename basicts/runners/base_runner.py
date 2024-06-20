@@ -113,6 +113,7 @@ class BaseRunner(Runner):
         """
 
         dataset = self.build_test_dataset(cfg)
+        self.dataset = dataset
         return build_data_loader(dataset, cfg["TEST"]["DATA"])
 
     @staticmethod

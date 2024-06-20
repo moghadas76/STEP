@@ -1,3 +1,4 @@
+import importlib
 import os
 import sys
 
@@ -6,7 +7,10 @@ import sys
 sys.path.append(os.path.abspath(__file__ + "/../../.."))
 import torch
 from easydict import EasyDict
-from basicts.utils.serialization import load_adj
+try:
+    from basicts.utils.serialization import load_adj
+except:
+    from STEP.basicts.utils.serialization import load_adj
 
 from .step_arch import STEP
 from .step_runner import STEPRunner
@@ -16,7 +20,7 @@ from .step_data import ForecastingDataset
 
 CFG = EasyDict()
 
-CFG.MD5 = "83b9af4678f81dce26d004772c6aa7fb_tmp"
+CFG.MD5 = "83b9af4678f81dce26d004772c6aa7fb"
 # Resume
 
 # ================= general ================= #
@@ -45,7 +49,7 @@ CFG.MODEL.ARCH = STEP
 
 CFG.MODEL.PARAM = {
     "dataset_name": CFG.DATASET_NAME,
-    "pre_trained_tsformer_path": "tsformer_ckpt/TSFormer_METR-LA.pt",
+    "pre_trained_tsformer_path": "../tsformer_ckpt/TSFormer_METR-LA.pt",
     "tsformer_args": {
                     "patch_size":12,
                     "in_channel":1,
@@ -109,8 +113,14 @@ CFG.TRAIN.CLIP_GRAD_PARAM = {
     "max_norm": 3.0
 }
 CFG.TRAIN.NUM_EPOCHS = 150
+prefix = "checkpoints"
+try:
+    importlib.import_module('basicts')
+    print("basicts is imported")
+except:
+    prefix = "../checkpoints"
 CFG.TRAIN.CKPT_SAVE_DIR = os.path.join(
-    "checkpoints",
+    prefix,
     "_".join([CFG.MODEL.NAME, str(CFG.TRAIN.NUM_EPOCHS)])
 )
 CFG.TRAIN.NUM_EPOCHS = 100

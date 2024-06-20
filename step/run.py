@@ -22,6 +22,7 @@ def parse_args():
     # parser.add_argument("-c", "--cfg", default="step/STEP_PEMS-BAY.py", help="training config")
 
     # parser.add_argument("-c", "--cfg", default="step/TSFormer_PEMS08.py", help="training config")
+    parser.add_argument("-i", "--inference", default=False, help="infrence config")
     parser.add_argument("-c", "--cfg", default="step/STEP_PEMS08.py", help="training config")
     
     parser.add_argument("--gpus", default="0", help="visible gpus")
@@ -30,4 +31,4 @@ def parse_args():
 if __name__ == "__main__":
     args = parse_args()
 
-    launch_training(args.cfg, args.gpus)
+    launch_training(args.cfg, args.gpus, inference=args.inference)

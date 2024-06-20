@@ -1,8 +1,12 @@
 import torch
 
 from easytorch.utils.dist import master_only
-from basicts.data.registry import SCALER_REGISTRY
-from basicts.runners import BaseTimeSeriesForecastingRunner
+try:
+    from basicts.data.registry import SCALER_REGISTRY
+    from basicts.runners import BaseTimeSeriesForecastingRunner
+except ModuleNotFoundError:
+    from STEP.basicts.data.registry import SCALER_REGISTRY
+    from STEP.basicts.runners import BaseTimeSeriesForecastingRunner
 
 
 class TSFormerRunner(BaseTimeSeriesForecastingRunner):

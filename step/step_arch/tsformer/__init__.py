@@ -1,2 +1,2 @@
-from .tsformer import TSFormer, TSFormerSpatialTemporalMasking
-__all__ = ["TSFormer", "TSFormerSpatialTemporalMasking"]
+from .tsformer import TSFormer, TSFormerSpatialTemporalMasking, TSFormerSpatialMasking
+__all__ = ["TSFormer", "TSFormerSpatialTemporalMasking", "TSFormerSpatialMasking"]

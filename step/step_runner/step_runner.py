@@ -1,8 +1,15 @@
+import datetime
+import pandas as pd
+import pytz
 import torch
 import torch.nn as nn
+try:
+    from basicts.runners import BaseTimeSeriesForecastingRunner
+    from basicts.metrics import masked_mae, masked_rmse, masked_mape
+except:
+    from STEP.basicts.runners import BaseTimeSeriesForecastingRunner
+    from STEP.basicts.metrics import masked_mae, masked_rmse, masked_mape
 
-from basicts.runners import BaseTimeSeriesForecastingRunner
-from basicts.metrics import masked_mae, masked_rmse, masked_mape
 from ..step_arch.dlinear import Model
 
 
@@ -86,3 +93,18 @@ class STEPRunner(BaseTimeSeriesForecastingRunner):
         for ind, (name, param) in enumerate(self.model.named_parameters()):
             if "backend." in name:
                 writer.add_histogram(name, param, global_step=0)  # You can use a proper global step value
+
+    @staticmethod
+    def find_indices(date: datetime.datetime):
+        df = pd.read_hdf("/home/seyed/PycharmProjects/step/STEP/datasets/raw_data/METR-LA/METR-LA.h5")
+        dates = df.index.to_pydatetime().tolist()
+        mapping = {date.replace(tzinfo=pytz.UTC): index for index, date in enumerate(dates)}
+        idx = mapping[date]
+        indices = [idx - 12, idx, idx + 12]
+        return indices
+
+    def inference(self, cfg, date: datetime.datetime):
+        self.load_model_resume(optimizer=True)
+        indices = self.find_indices(date)
+        inf_result = self.test_inference(cfg, indices)
+        return inf_result

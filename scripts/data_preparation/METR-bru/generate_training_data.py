@@ -36,9 +36,21 @@ def generate_data(args: argparse.Namespace):
     # graph_file_path = args.graph_file_path
 
     # read data
-    df = pd.read_csv(data_file_path)
-    df.set_index("start_timestamp", inplace=True)
-    df.index = pd.to_datetime(df.index)
+    if type(data_file_path) == str:
+        df = pd.read_csv(data_file_path)
+        df.set_index("start_timestamp", inplace=True)
+        df.index = pd.to_datetime(df.index)
+    else:
+        dfs = []
+        for file_path in data_file_path:
+            df = pd.read_csv(file_path)
+            df.index = pd.to_datetime(df.index)
+            df.drop(columns=["start_timestamp"], inplace=True)
+            # df.set_index("start_timestamp", inplace=True)
+            dfs.append(df)
+        df = pd.concat(dfs, join="inner")
+        pd.Series(df.index).to_pickle(output_dir + "/dates_index_data_dataset.pkl")
+        pd.Series(df.columns).to_pickle(output_dir + "/columns_index_data_dataset.pkl")
     data = np.expand_dims(df.values, axis=-1)
     data = data[..., target_channel]
     print("raw time series shape: {0}".format(data.shape))
@@ -115,7 +127,10 @@ if __name__ == "__main__":
     TOD = True                  # if add time_of_day feature
     DOW = True                  # if add day_of_week feature
     OUTPUT_DIR = "datasets/" + "Bru"
-    DATA_FILE_PATH = "/home/seyed/PycharmProjects/dashboard/dashboard/src/dashboard/results/qq_0.csv"
+    DATA_FILE_PATH = [
+        "/home/seyed/PycharmProjects/dashboard/dashboard/src/dashboard/results/qq_0.csv",
+        "/home/seyed/PycharmProjects/step/STEP/datasets/Brussels/_merged_debug_raw_data_2024-06-03_to_end.csv"
+        ]
     GRAPH_FILE_PATH = "datasets/raw_data/{0}/adj_{0}.pkl".format(DATASET_NAME)
 
     parser = argparse.ArgumentParser()
